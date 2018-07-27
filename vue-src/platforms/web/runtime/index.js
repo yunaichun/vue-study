@@ -1,0 +1,80 @@
+/*
+1、Vue.prototype 下的属性和方法的挂载主要是在 src/core/instance 目录中的代码处理的
+
+2、Vue 下的静态属性和方法的挂载主要是在 src/core/global-api 目录下的代码处理的
+
+3、web-runtime.js 主要是添加web平台特有的配置、组件和指令，
+web-runtime-with-compiler.js 给Vue的 $mount 方法添加 compiler 编译器，支持 template，将模板 template 编译为render函数。
+*/
+
+/* @flow */
+
+import Vue from 'core/index'
+import config from 'core/config'
+import { extend, noop } from 'shared/util'
+import { mountComponent } from 'core/instance/lifecycle'
+import { devtools, inBrowser, isChrome } from 'core/util/index'
+
+import {
+  query,
+  mustUseProp,
+  isReservedTag,
+  isReservedAttr,
+  getTagNamespace,
+  isUnknownElement
+} from 'web/util/index'
+
+import { patch } from './patch'
+import platformDirectives from './directives/index'
+import platformComponents from './components/index'
+
+// install platform specific utils
+Vue.config.mustUseProp = mustUseProp
+Vue.config.isReservedTag = isReservedTag
+Vue.config.isReservedAttr = isReservedAttr
+Vue.config.getTagNamespace = getTagNamespace
+Vue.config.isUnknownElement = isUnknownElement
+
+// install platform runtime directives & components
+// ------[/src/core/global-api/index.js 也会挂载静态属性和方法，会在此合并这些配置项]------
+extend(Vue.options.directives, platformDirectives)
+extend(Vue.options.components, platformComponents)
+
+// install platform patch function
+Vue.prototype.__patch__ = inBrowser ? patch : noop
+
+// public mount method
+Vue.prototype.$mount = function (
+  el?: string | Element,
+  hydrating?: boolean
+): Component {
+  el = el && inBrowser ? query(el) : undefined
+  return mountComponent(this, el, hydrating)
+}
+
+// devtools global hook
+/* istanbul ignore next */
+Vue.nextTick(() => {
+  if (config.devtools) {
+    if (devtools) {
+      devtools.emit('init', Vue)
+    } else if (process.env.NODE_ENV !== 'production' && isChrome) {
+      console[console.info ? 'info' : 'log'](
+        'Download the Vue Devtools extension for a better development experience:\n' +
+        'https://github.com/vuejs/vue-devtools'
+      )
+    }
+  }
+  if (process.env.NODE_ENV !== 'production' &&
+    config.productionTip !== false &&
+    inBrowser && typeof console !== 'undefined'
+  ) {
+    console[console.info ? 'info' : 'log'](
+      `You are running Vue in development mode.\n` +
+      `Make sure to turn on production mode when deploying for production.\n` +
+      `See more tips at https://vuejs.org/guide/deployment.html`
+    )
+  }
+}, 0)
+
+export default Vue
