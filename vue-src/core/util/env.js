@@ -4,6 +4,7 @@
 import { handleError } from './error'
 
 // can we use __proto__?
+// 有__proto__属性方法
 export const hasProto = '__proto__' in {}
 
 // Browser environment sniffing
@@ -35,6 +36,7 @@ if (inBrowser) {
 
 // this needs to be lazy-evaled because vue may be required before
 // vue-server-renderer can set VUE_ENV
+// 返回是否是服务端渲染
 let _isServer
 export const isServerRendering = () => {
   if (_isServer === undefined) {
@@ -51,6 +53,7 @@ export const isServerRendering = () => {
 }
 
 // detect devtools
+// 浏览器环境，同时也是VUE环境
 export const devtools = inBrowser && window.__VUE_DEVTOOLS_GLOBAL_HOOK__
 
 /* istanbul ignore next */
@@ -79,7 +82,7 @@ export const nextTick = (function () {
   // 一个函数指针，指向函数将被推送到任务队列中，等到主线程任务执行完时，任务队列中的timerFunc被调用
   let timerFunc
 
-  // 下一个tick时的回调
+  // 下一个tick时的回调：执行callbacks中存储的函数
   function nextTickHandler () {
     // 一个标记位，标记等待状态（即函数已经被推入任务队列或者主线程，已经在等待当前栈执行完毕去执行）
     // 这样就不需要在push多个回调到callbacks时将timerFunc多次推入任务队列或者主线程
@@ -109,6 +112,7 @@ export const nextTick = (function () {
   // 优先级：setImmediate -> MessageChannel -> Promise.then -> setTimeout
   if (typeof setImmediate !== 'undefined' && isNative(setImmediate)) {
     timerFunc = () => {
+      // 执行callbacks中存储的函数
       setImmediate(nextTickHandler)
     }
   } else if (typeof MessageChannel !== 'undefined' && (
@@ -138,8 +142,10 @@ export const nextTick = (function () {
     }
   }
 
+  // 推送到队列中下一个tick时执行，cb 回调函数，ctx 上下文
   return function queueNextTick (cb?: Function, ctx?: Object) {
     let _resolve
+    // 将任务推送到callbacks数组中
     callbacks.push(() => {
       if (cb) {
         try {
@@ -151,7 +157,10 @@ export const nextTick = (function () {
         _resolve(ctx)
       }
     })
+    // 执行异步回调
     if (!pending) {
+      // 一个标记位，标记等待状态（即函数已经被推入任务队列或者主线程，已经在等待当前栈执行完毕去执行）
+      // 这样就不需要在push多个回调到callbacks时将timerFunc多次推入任务队列或者主线程
       pending = true
       timerFunc()
     }

@@ -4,6 +4,7 @@ import config from '../config'
 import { warn } from './debug'
 import { inBrowser } from './env'
 
+// VUE异常处理
 export function handleError (err: Error, vm: any, info: string) {
   if (vm) {
     let cur = vm
@@ -23,7 +24,7 @@ export function handleError (err: Error, vm: any, info: string) {
   }
   globalHandleError(err, vm, info)
 }
-
+// 全局异常处理
 function globalHandleError (err, vm, info) {
   if (config.errorHandler) {
     try {
@@ -34,7 +35,7 @@ function globalHandleError (err, vm, info) {
   }
   logError(err, vm, info)
 }
-
+// 打印错误
 function logError (err, vm, info) {
   if (process.env.NODE_ENV !== 'production') {
     warn(`Error in ${info}: "${err.toString()}"`, vm)
