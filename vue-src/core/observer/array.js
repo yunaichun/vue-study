@@ -13,8 +13,6 @@ export const arrayMethods = Object.create(arrayProto)
 /**
  * Intercept mutating methods and emit events
  */
- // 使用 push 等数组方法的时候，调用的是 fakePrototype 上的push方法，
- // 然后在 fakePrototype 方法中再去调用真正的Array原型上的 push 方法，同时监听变化
 ;[
   'push',
   'pop',
@@ -32,7 +30,8 @@ export const arrayMethods = Object.create(arrayProto)
   def(arrayMethods, method, function mutator (...args) {
     // 调用原生的数组方法
     const result = original.apply(this, args)
-    // 从上层获取的，待定？
+    // this.__ob__ = new Observer()
+    // this.__ob__就是一个Observe实例，通过其上的observeArray可以对新加入的数组元素添加访问器属性
     const ob = this.__ob__
 
     // 数组新插入的元素需要重新进行observe才能响应式
@@ -46,10 +45,12 @@ export const arrayMethods = Object.create(arrayProto)
         inserted = args.slice(2) // 替换的元素
         break
     }
+    // 如果通过push、unshift、splice新增或替换新的元素进来，将新添加进数组的数据变为访问器属性
     if (inserted) ob.observeArray(inserted)
       
     // notify change
-    // 通知所有watch(注册)观察者进行响应式处理
+    // data.a.push()，是执行data.a的原型arrayMethods上的push方法，而arrayMethods上的push方法是调用Array.prototype上的push方法
+    // dep对象通知所有的观察者【此dep与this.dep相同】
     ob.dep.notify()
     return result
   })

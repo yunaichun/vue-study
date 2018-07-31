@@ -44,23 +44,23 @@ export class Observer {
 
   constructor (value: any) {
     this.value = value
-    // 在构造函数中实例依赖收集器
+    // 在defineReactive已经实例过Dep，此处的作用是对子对象和数组成员进行依赖收集用的
     this.dep = new Dep()
     this.vmCount = 0
-    // 将Observer实例绑定到data的__ob__属性上面：data.__ob__ = New Oberver()
-    // 之前说过observe的时候会先检测是否已经有__ob__对象存放Observer实例了，
+    // 将Observer实例绑定到当前value的__ob__属性上面：value.__ob__ = New Oberver()
     def(value, '__ob__', this)
     // 对数组的监控
     if (Array.isArray(value)) {
       const augment = hasProto // 有__proto__属性方法
-        ? protoAugment // 修改目标对象或数组：改变其原型
-        : copyAugment // 修改目标对象或数组：拷贝
-      augment(value, arrayMethods, arrayKeys) // 目标，源，源的keys数组
-      // 检测数组
+        ? protoAugment // 修改目标对象或数组：value.__proto__ = arrayMethods
+        : copyAugment // 修改目标对象或数组：value.arrayKeys = arrayMethods.arrayKeys
+      // 改变数组对象的原型指向
+      augment(value, arrayMethods, arrayKeys)
+      // 将数组成员变为访问器属性
       this.observeArray(value)
     } else {
-      // walk 方法对数据data的属性循环调用 defineReactive 方法，
-      // defineReactive 方法将数据data的属性转为访问器属性，并对数据进行递归观测，否则只能观测数据data的直属子属性
+      // walk 方法对对象数据data的属性循环调用 defineReactive 方法，
+      // defineReactive 方法将数据data的属性转为访问器属性，并对数据进行递归观测
       this.walk(value)
     }
   }
@@ -183,14 +183,16 @@ export function defineReactive (
     get: function reactiveGetter () {
       // 如果原本对象拥有getter方法则执行
       const value = getter ? getter.call(obj) : val
+      // new Watch() -> Dep.target = new Watch() -> 取值触发get
       if (Dep.target) {
-        // 进行依赖收集
+        // 进行依赖收集【此dep是在当前访问器属性作用域内，与this.dep不同】
         dep.depend()
         if (childOb) {
-          // 子对象进行依赖收集，其实就是将同一个watcher观察者实例放进了两个depend中，
-          // 一个是正在本身闭包中的depend，另一个是子元素的depend
+          // 子对象进行依赖收集，其实就是将同一个watcher观察者实例放进了两个depend中，一个是正在本身闭包中的depend，另一个是子元素的depend
+          // childOb.__ob__ = new Observer()
+          // childOb就是一个Observe实例，其上有属性dep：this.dep = new Dep();【此dep与this.dep相同】
           childOb.dep.depend()
-          // 是数组则需要对每一个成员都进行依赖收集，如果数组的成员还是数组，则递归。
+          // 对数组每个成员进行依赖收集
           if (Array.isArray(value)) {
             dependArray(value)
           }
@@ -217,7 +219,7 @@ export function defineReactive (
       }
       // 新的值需要重新进行observe，保证数据响应式
       childOb = !shallow && observe(newVal)
-      // dep对象通知所有的观察者
+      // dep对象通知所有的观察者【此dep是在当前访问器属性作用域内，与this.dep不同】
       dep.notify()
     }
   })
@@ -297,7 +299,9 @@ export function del (target: Array<any> | Object, key: any) {
 function dependArray (value: Array<any>) {
   for (let e, i = 0, l = value.length; i < l; i++) {
     e = value[i]
-    // 通过对象上的观察者进行依赖收集：data.__ob__ = new Observer()
+    // observeArray方法已经将数组的每一项变为遍历器属性
+    // value[i].__ob__ = new Observer()
+    // value[i].__ob__就是一个Observe实例，其上有属性dep：this.dep = new Dep()【此dep与this.dep相同】
     e && e.__ob__ && e.__ob__.dep.depend()
     if (Array.isArray(e)) {
       // 当数组成员还是数组的时候递归执行该方法继续深层依赖收集，

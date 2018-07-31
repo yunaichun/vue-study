@@ -31,6 +31,7 @@ export default class Dep {
 
   // 依赖收集，当存在Dep.target的时候添加观察者对象
   depend () {
+    // new Watch() -> Dep.target = new Watch() -> 取值触发get
     if (Dep.target) {
       Dep.target.addDep(this)
     }
@@ -57,7 +58,7 @@ const targetStack = []
 // 同时将该实例存入target栈中
 export function pushTarget (_target: Watcher) {
   if (Dep.target) targetStack.push(Dep.target)
-  Dep.target = _target
+  Dep.target = _target // _target是一个Watch实例
 }
 
 // 将观察者实例从target栈中取出并设置给Dep.target
