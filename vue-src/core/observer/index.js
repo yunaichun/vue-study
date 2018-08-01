@@ -54,9 +54,9 @@ export class Observer {
       const augment = hasProto // 有__proto__属性方法
         ? protoAugment // 修改目标对象或数组：value.__proto__ = arrayMethods
         : copyAugment // 修改目标对象或数组：value.arrayKeys = arrayMethods.arrayKeys
-      // 改变数组对象的原型指向
+      // 改变数组对象的原型指向【目的是使数组在原型上含有7个数组操作的属性方法名，在对数组进行7个数组操作的时候可以触发收集的依赖】
       augment(value, arrayMethods, arrayKeys)
-      // 将数组成员变为访问器属性
+      // 数组需要遍历每一个成员进行observe(数组可能嵌套数组或对象)
       this.observeArray(value)
     } else {
       // walk 方法对对象数据data的属性循环调用 defineReactive 方法，
@@ -85,7 +85,7 @@ export class Observer {
   // 对数组的每一个成员进行observe
   observeArray (items: Array<any>) {
     for (let i = 0, l = items.length; i < l; i++) {
-       // 数组需要遍历每一个成员进行observe
+       // 数组需要遍历每一个成员进行observe(数组可能嵌套数组或对象)
       observe(items[i])
     }
   }
@@ -175,7 +175,9 @@ export function defineReactive (
   const getter = property && property.get
   const setter = property && property.set
 
-  // 对象的子对象递归进行observe并返回子节点的Observer对象
+  // 递归观测子属性(子属性是数组或者对象)
+  // 一、数组：取值时触发childObj.dep依赖收集器，设置值时通过data.__ob__.dep触发收集的依赖: { a: [{ w: [1] }, [1], 3] }
+  // 二、对象：通过当前作用域的实例dep = new Dep()触发依赖收集: { a: { w: 1 } }
   let childOb = !shallow && observe(val)
   Object.defineProperty(obj, key, {
     enumerable: true,
@@ -185,14 +187,12 @@ export function defineReactive (
       const value = getter ? getter.call(obj) : val
       // new Watch() -> Dep.target = new Watch() -> 取值触发get
       if (Dep.target) {
-        // 进行依赖收集【此dep是在当前访问器属性作用域内，与this.dep不同】
+        // 在 get 中收集当前属性的依赖
         dep.depend()
         if (childOb) {
-          // 子对象进行依赖收集，其实就是将同一个watcher观察者实例放进了两个depend中，一个是正在本身闭包中的depend，另一个是子元素的depend
-          // childOb.__ob__ = new Observer()
-          // childOb就是一个Observe实例，其上有属性dep：this.dep = new Dep();【此dep与this.dep相同】
+          // 对子属性进行依赖收集: (子属性是对象或数组的情况: { a: { w: 1 } }、{ a: [{ w: [1] }, [1], 3] })
           childOb.dep.depend()
-          // 对数组每个成员进行依赖收集
+          // 对子属性进行依赖收集: (子属性是数组深层嵌套的情况: { a: [{ w: [1] }, [1], 3] })
           if (Array.isArray(value)) {
             dependArray(value)
           }
@@ -296,16 +296,14 @@ export function del (target: Array<any> | Object, key: any) {
  * Collect dependencies on array elements when the array is touched, since
  * we cannot intercept array element access like property getters.
  */
+// 数组深层嵌套依赖的收集(数组嵌套对象、数组嵌套数组)
 function dependArray (value: Array<any>) {
   for (let e, i = 0, l = value.length; i < l; i++) {
     e = value[i]
-    // observeArray方法已经将数组的每一项变为遍历器属性
-    // value[i].__ob__ = new Observer()
-    // value[i].__ob__就是一个Observe实例，其上有属性dep：this.dep = new Dep()【此dep与this.dep相同】
+    // 成员是对象或者数组进行依赖收集: { w: 1 }、[{ w: [1] }, [1], 3]
     e && e.__ob__ && e.__ob__.dep.depend()
+    // 成员是数组深层嵌套的情况：递归执行该方法继续深层依赖收集[{ w: [1] }, [1], 3]
     if (Array.isArray(e)) {
-      // 当数组成员还是数组的时候递归执行该方法继续深层依赖收集，
-      // 直到是对象为止。
       dependArray(e)
     }
   }

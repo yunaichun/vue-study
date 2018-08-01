@@ -30,8 +30,7 @@ export const arrayMethods = Object.create(arrayProto)
   def(arrayMethods, method, function mutator (...args) {
     // 调用原生的数组方法
     const result = original.apply(this, args)
-    // this.__ob__ = new Observer()
-    // this.__ob__就是一个Observe实例，通过其上的observeArray可以对新加入的数组元素添加访问器属性
+    // def(data, '__ob__', new Observer())
     const ob = this.__ob__
 
     // 数组新插入的元素需要重新进行observe才能响应式
@@ -45,7 +44,7 @@ export const arrayMethods = Object.create(arrayProto)
         inserted = args.slice(2) // 替换的元素
         break
     }
-    // 如果通过push、unshift、splice新增或替换新的元素进来，将新添加进数组的数据变为访问器属性
+    // 如果通过push、unshift、splice新增或替换新的元素进来，对新添加进数组的数据进行检测
     if (inserted) ob.observeArray(inserted)
       
     // notify change
