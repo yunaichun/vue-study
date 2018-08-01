@@ -44,19 +44,19 @@ export class Observer {
 
   constructor (value: any) {
     this.value = value
-    // 在defineReactive已经实例过Dep，此处的作用是对子对象和数组成员进行依赖收集用的
+    // 在defineReactive已经实例过Dep; 此处的作用是对子对象或子数组childOb.dep.depend()、数组深层嵌套进行依赖收集e.__ob__.dep.depend()
     this.dep = new Dep()
     this.vmCount = 0
-    // 将Observer实例绑定到当前value的__ob__属性上面：value.__ob__ = New Oberver()
+    // 将Observer实例绑定到当前value的__ob__属性上面; 此处的作用是数组深层嵌套进行依赖收集e.__ob__.dep.depend()、数组操作触发依赖data.__ob__.dep.notify()
     def(value, '__ob__', this)
     // 对数组的监控
     if (Array.isArray(value)) {
       const augment = hasProto // 有__proto__属性方法
         ? protoAugment // 修改目标对象或数组：value.__proto__ = arrayMethods
         : copyAugment // 修改目标对象或数组：value.arrayKeys = arrayMethods.arrayKeys
-      // 改变数组对象的原型指向【目的是使数组在原型上含有7个数组操作的属性方法名，在对数组进行7个数组操作的时候可以触发收集的依赖】
+      // 改变数组对象的原型指向 ( 目的是使数组在原型上含有7个数组操作的属性方法名，在对数组进行7个数组操作的时候可以触发收集的依赖 )
       augment(value, arrayMethods, arrayKeys)
-      // 数组需要遍历每一个成员进行observe(数组可能嵌套数组或对象)
+      // 数组需要遍历每一个成员进行observe ( 数组可能嵌套数组或对象 )
       this.observeArray(value)
     } else {
       // walk 方法对对象数据data的属性循环调用 defineReactive 方法，

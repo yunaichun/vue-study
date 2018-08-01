@@ -49,7 +49,6 @@ export const arrayMethods = Object.create(arrayProto)
       
     // notify change
     // data.a.push()，是执行data.a的原型arrayMethods上的push方法，而arrayMethods上的push方法是调用Array.prototype上的push方法
-    // dep对象通知所有的观察者【此dep与this.dep相同】
     ob.dep.notify()
     return result
   })
