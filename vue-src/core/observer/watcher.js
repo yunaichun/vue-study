@@ -130,7 +130,7 @@ export default class Watcher {
   /**
    * Add a dependency to this directive.
    */
-  // 调用Dep收集依赖
+  // 调用Dep的addSub收集依赖
   addDep (dep: Dep) {
     const id = dep.id
     if (!this.newDepIds.has(id)) {
@@ -145,7 +145,7 @@ export default class Watcher {
   /**
    * Clean up for dependency collection.
    */
-  // 清理依赖收集
+  // 调用Dep的removeSub清理依赖
   cleanupDeps () {
     // 移除所有观察者对象
     let i = this.deps.length
@@ -189,14 +189,13 @@ export default class Watcher {
    */
   run () {
     if (this.active) {
-      // get操作在获取value本身也会执行getter从而调用update更新视图
+      // Dep.target = new Watch() -> 取值parsePath(expOrFn) -> 触发get进行依赖收集
       const value = this.get()
       if (
         value !== this.value ||
         // Deep watchers and watchers on Object/Arrays should fire even
         // when the value is the same, because the value may
         // have mutated.
-        // 即便值相同，拥有Deep属性的观察者以及在对象／数组上的观察者应该被触发更新，因为它们的值可能发生改变。
         isObject(value) ||
         this.deep
       ) {
@@ -208,11 +207,14 @@ export default class Watcher {
         // 触发回调
         if (this.user) {
           try {
+            // 回调传递新值和旧值
             this.cb.call(this.vm, value, oldValue)
           } catch (e) {
             handleError(e, this.vm, `callback for watcher "${this.expression}"`)
           }
         } else {
+          // 即便值相同，拥有Deep属性的观察者以及在对象／数组上的观察者应该被触发更新，
+          // 因为它们的值可能发生改变。
           this.cb.call(this.vm, value, oldValue)
         }
       }
@@ -232,10 +234,11 @@ export default class Watcher {
   /**
    * Depend on all deps collected by this watcher.
    */
-  // 调用Dep的方法，收集该watcher的所有deps依赖
+  // 调用Dep的方法: 收集该watcher的所有deps依赖
   depend () {
     let i = this.deps.length
     while (i--) {
+      // 调用Dep的方法: Dep.target.addDep(this)
       this.deps[i].depend()
     }
   }
@@ -249,11 +252,13 @@ export default class Watcher {
       // remove self from vm's watcher list
       // this is a somewhat expensive operation so we skip it
       // if the vm is being destroyed.
-      // 从vm实例的观察者列表中将自身移除，由于该操作比较耗费资源，所以如果vm实例正在被销毁则跳过该步骤。
+      // 从vm实例的观察者列表中将自身移除
+      // 由于该操作比较耗费资源，所以如果vm实例正在被销毁则跳过该步骤。
       if (!this.vm._isBeingDestroyed) {
         remove(this.vm._watchers, this)
       }
       let i = this.deps.length
+      // 将自身从所有依赖收集订阅列表删除
       while (i--) {
         this.deps[i].removeSub(this)
       }
@@ -278,7 +283,7 @@ function traverse (val: any) {
 function _traverse (val: any, seen: ISet) {
   let i, keys
   const isA = Array.isArray(val)
-  // 非对象或数组或是不可扩展对象直接return，不需要收集深层依赖关系
+  // 不是数组且不是对象 或 是不可扩展对象直接return，不需要收集深层依赖关系
   if ((!isA && !isObject(val)) || !Object.isExtensible(val)) {
     return
   }
@@ -288,12 +293,13 @@ function _traverse (val: any, seen: ISet) {
     if (seen.has(depId)) {
       return
     }
+    // 将value对应的依赖添加进set集合
     seen.add(depId)
   }
-  if (isA) {
+  if (isA) { // 递归数组
     i = val.length
     while (i--) _traverse(val[i], seen)
-  } else {
+  } else { // 递归对象
     keys = Object.keys(val)
     i = keys.length
     while (i--) _traverse(val[keys[i]], seen)

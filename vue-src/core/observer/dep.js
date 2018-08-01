@@ -29,9 +29,10 @@ export default class Dep {
     remove(this.subs, sub)
   }
 
-  // 依赖收集，当存在Dep.target的时候添加观察者对象
+  // 在Watcher对象中通过depend方法调用
+  // 会收集该watcher的所有deps依赖
   depend () {
-    // new Watch() -> Dep.target = new Watch() -> 取值触发get
+    // new Watch() -> Dep.target = new Watch() -> 取值parsePath(expOrFn) -> 触发get进行依赖收集
     if (Dep.target) {
       Dep.target.addDep(this)
     }
