@@ -73,12 +73,11 @@ export default class Watcher {
       ? expOrFn.toString()
       : ''
     // parse expression for getter
-    // 把表达式expOrFn解析成getter
+    // 表达式expOrFn为函数
     if (typeof expOrFn === 'function') {
       this.getter = expOrFn
     } else {
-      // 实例Watcher的时候对表达式求值，触发对vm实例属性data的取值，由于data的属性已经转换为访问器属性，所有会触发依赖的收集
-      // 如vm.$watcher('a.b', function(newVal, oldVal) {})
+      // 实例Watcher的时候对表达式求值，即实例属性data的取值，从发触发依赖的收集
       this.getter = parsePath(expOrFn)
       if (!this.getter) {
         this.getter = function () {}
@@ -99,12 +98,12 @@ export default class Watcher {
    * Evaluate the getter, and re-collect dependencies.
    */
   get () {
-    // 将此Watcher实例赋值给Dep.target：Dep.target = new Watcher()
+    // 将自身watcher观察者实例设置给Dep.target，用以依赖收集
     pushTarget(this)
     let value
     const vm = this.vm
-    // 属性取值的时候触发此依赖的收集
     try {
+      // 对表达式求值，触发依赖的收集
       value = this.getter.call(vm, vm)
     } catch (e) {
       if (this.user) {
@@ -131,6 +130,7 @@ export default class Watcher {
   /**
    * Add a dependency to this directive.
    */
+  // 调用Dep收集依赖
   addDep (dep: Dep) {
     const id = dep.id
     if (!this.newDepIds.has(id)) {
