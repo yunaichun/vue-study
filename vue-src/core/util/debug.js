@@ -5,22 +5,28 @@ import { noop } from 'shared/util'
 
 export let warn = noop
 export let tip = noop
+// 任意值
 export let generateComponentTrace = (noop: any) // work around flow check
 export let formatComponentName = (noop: any)
 
 if (process.env.NODE_ENV !== 'production') {
+  // 存在console
   const hasConsole = typeof console !== 'undefined'
   const classifyRE = /(?:^|[-_])(\w)/g
   const classify = str => str
     .replace(classifyRE, c => c.toUpperCase())
     .replace(/[-_]/g, '')
 
+  // 错误打印：msg
   warn = (msg, vm) => {
+    // 此时trace即为vue实例
     const trace = vm ? generateComponentTrace(vm) : ''
 
     if (config.warnHandler) {
+      // 传入值：msg, vm, trace
       config.warnHandler.call(null, msg, vm, trace)
     } else if (hasConsole && (!config.silent)) {
+      // 控制台打印
       console.error(`[Vue warn]: ${msg}${trace}`)
     }
   }

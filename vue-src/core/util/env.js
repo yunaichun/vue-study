@@ -8,7 +8,7 @@ import { handleError } from './error'
 export const hasProto = '__proto__' in {}
 
 // Browser environment sniffing
-export const inBrowser = typeof window !== 'undefined'
+export const inBrowser = typeof window !== 'undefined' // 判断当前环境是否是浏览器环境
 export const UA = inBrowser && window.navigator.userAgent.toLowerCase()
 export const isIE = UA && /msie|trident/.test(UA)
 export const isIE9 = UA && UA.indexOf('msie 9.0') > 0

@@ -140,25 +140,27 @@ export function lifecycleMixin (Vue: Class<Component>) {
   }
 }
 
+// $mount挂载组件
 export function mountComponent (
   vm: Component,
   el: ?Element,
   hydrating?: boolean
 ): Component {
+  // 在Vue实例对象上添加 $el 属性，指向挂载点元素
   vm.$el = el
+  // render 不存在的情况去编译template，生成render
   if (!vm.$options.render) {
     vm.$options.render = createEmptyVNode
-    if (process.env.NODE_ENV !== 'production') {
+    if (process.env.NODE_ENV !== 'production') { // 开发环境
       /* istanbul ignore if */
-      if ((vm.$options.template && vm.$options.template.charAt(0) !== '#') ||
-        vm.$options.el || el) {
+      if ((vm.$options.template && vm.$options.template.charAt(0) !== '#') || vm.$options.el || el) { // template直接写模板、或存在el选项
         warn(
           'You are using the runtime-only build of Vue where the template ' +
           'compiler is not available. Either pre-compile the templates into ' +
           'render functions, or use the compiler-included build.',
           vm
         )
-      } else {
+      } else { // 不存在template且没有el选项
         warn(
           'Failed to mount component: template or render function not defined.',
           vm
@@ -166,11 +168,12 @@ export function mountComponent (
       }
     }
   }
+  // 触发 beforeMount 钩子
   callHook(vm, 'beforeMount')
 
   let updateComponent
   /* istanbul ignore if */
-  if (process.env.NODE_ENV !== 'production' && config.performance && mark) {
+  if (process.env.NODE_ENV !== 'production' && config.performance && mark) { // 开发环境
     updateComponent = () => {
       const name = vm._name
       const id = vm._uid
@@ -178,18 +181,18 @@ export function mountComponent (
       const endTag = `vue-perf-end:${id}`
 
       mark(startTag)
-      const vnode = vm._render()
+      const vnode = vm._render() // 初始渲染的节点
       mark(endTag)
       measure(`vue ${name} render`, startTag, endTag)
 
       mark(startTag)
-      vm._update(vnode, hydrating)
+      vm._update(vnode, hydrating) // 更新初始渲染的节点
       mark(endTag)
       measure(`vue ${name} patch`, startTag, endTag)
     }
-  } else {
+  } else { // 生产环境
     updateComponent = () => {
-      vm._update(vm._render(), hydrating)
+      vm._update(vm._render(), hydrating) // 更新初始渲染的节点
     }
   }
 
@@ -198,8 +201,11 @@ export function mountComponent (
 
   // manually mounted instance, call mounted on self
   // mounted is called for render-created child components in its inserted hook
+  // 如果是第一次mount则触发 mounted 生命周期钩子
   if (vm.$vnode == null) {
+    // 标志位，代表该组件已经挂载
     vm._isMounted = true
+    // 触发 mounted 钩子
     callHook(vm, 'mounted')
   }
   return vm
@@ -311,7 +317,9 @@ export function deactivateChildComponent (vm: Component, direct?: boolean) {
   }
 }
 
+// 调用钩子函数、触发生命周期钩子函数
 export function callHook (vm: Component, hook: string) {
+  // 生命周期函数名称
   const handlers = vm.$options[hook]
   if (handlers) {
     for (let i = 0, j = handlers.length; i < j; i++) {

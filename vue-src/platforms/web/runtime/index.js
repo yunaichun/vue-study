@@ -44,11 +44,14 @@ extend(Vue.options.components, platformComponents)
 Vue.prototype.__patch__ = inBrowser ? patch : noop
 
 // public mount method
+// 通过 el 获取相应的DOM元素
+// 然后调用 lifecycle.js 文件中的 _mount 方法
 Vue.prototype.$mount = function (
   el?: string | Element,
   hydrating?: boolean
 ): Component {
   el = el && inBrowser ? query(el) : undefined
+  // 调用lifecycle生命周期中的挂载组件mountComponent函数
   return mountComponent(this, el, hydrating)
 }
 
