@@ -49,6 +49,7 @@ export function initLifecycle (vm: Component) {
 export function lifecycleMixin (Vue: Class<Component>) {
   Vue.prototype._update = function (vnode: VNode, hydrating?: boolean) {
     const vm: Component = this
+    // 假如已经挂载，调用beforeUpdate钩子
     if (vm._isMounted) {
       callHook(vm, 'beforeUpdate')
     }
@@ -59,6 +60,7 @@ export function lifecycleMixin (Vue: Class<Component>) {
     vm._vnode = vnode
     // Vue.prototype.__patch__ is injected in entry points
     // based on the rendering backend used.
+    // 如果还没有 prevVnode 说明是首次渲染，直接创建真实DOM
     if (!prevVnode) {
       // initial render
       vm.$el = vm.__patch__(
@@ -69,7 +71,10 @@ export function lifecycleMixin (Vue: Class<Component>) {
       // no need for the ref nodes after initial patch
       // this prevents keeping a detached DOM tree in memory (#5851)
       vm.$options._parentElm = vm.$options._refElm = null
-    } else {
+    } 
+    // 如果已经有了 prevVnode 说明不是首次渲染，那么就采用 patch 算法进行必要的DOM操作。
+    // 这就是Vue更新DOM的逻辑。只不过我们没有将 virtual DOM 内部的实现。
+    else {
       // updates
       vm.$el = vm.__patch__(prevVnode, vnode)
     }
@@ -181,12 +186,17 @@ export function mountComponent (
       const endTag = `vue-perf-end:${id}`
 
       mark(startTag)
-      const vnode = vm._render() // 初始渲染的节点
+      // render 函数的作用域是Vue实例本身即：this(或vm)。那么当我们执行 render 函数时，
+      // 其中的变量如：a，就相当于：this.a，这是在求值
+      // vm_render 方法最终返回一个 vnode 对象，即虚拟DOM，然后作为 vm_update 的第一个参数传递了过去
+      const vnode = vm._render()
       mark(endTag)
       measure(`vue ${name} render`, startTag, endTag)
 
       mark(startTag)
-      vm._update(vnode, hydrating) // 更新初始渲染的节点
+      //  // 当 vm._render 执行的时候，所依赖的变量就会被求值，并被收集为依赖。按照Vue中 watcher.js 的逻辑，
+      //  当依赖的变量有变化时不仅仅回调函数被执行，实际上还要重新求值，即还要执行一遍：() => { vm._update(vm._render(), hydrating) }
+      vm._update(vnode, hydrating)
       mark(endTag)
       measure(`vue ${name} patch`, startTag, endTag)
     }
@@ -196,6 +206,10 @@ export function mountComponent (
     }
   }
 
+  // Watcher函数第一个参数是 表达式或者函数，第二个参数是回调函数，第三个参数是可选的选项
+  // 但是这里Watcher函数第一个参数是vm，这是什么鬼，看看$watch的定义 (core/instance/state.js)
+  // 忽略第一个参数 vm，也就说，Watcher 内部应该对第二个参数求值，也就是运行这个函数：() => { vm._update(vm._render(), hydrating) }
+  // 所以 vm._render() 函数被第一个执行，该函数在 ( src/core/instance/render.js ) 中
   vm._watcher = new Watcher(vm, updateComponent, noop)
   hydrating = false
 

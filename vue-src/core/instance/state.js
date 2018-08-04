@@ -350,6 +350,7 @@ export function stateMixin (Vue: Class<Component>) {
   Vue.prototype.$set = set
   Vue.prototype.$delete = del
 
+  // $watch是对Watcher的封装
   Vue.prototype.$watch = function (
     expOrFn: string | Function,
     cb: any,
@@ -362,10 +363,13 @@ export function stateMixin (Vue: Class<Component>) {
     options = options || {}
     options.user = true
     const watcher = new Watcher(vm, expOrFn, cb, options)
+    // 有immediate参数的时候会立即执行
     if (options.immediate) {
       cb.call(vm, watcher.value)
     }
+    // 返回一个取消观察函数，用来停止触发回调
     return function unwatchFn () {
+      // 将自身从所有依赖收集订阅列表删除
       watcher.teardown()
     }
   }

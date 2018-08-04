@@ -12,18 +12,18 @@ import { bindObjectListeners } from './bind-object-listeners'
 import { resolveScopedSlots } from './resolve-slots'
 
 export function installRenderHelpers (target: any) {
-  target._o = markOnce
+  target._o = markOnce // 
   target._n = toNumber
-  target._s = toString
-  target._l = renderList
+  target._s = toString //  render函数创建文本节点内容 {{ a }}
+  target._l = renderList // reder函数中用v-for
   target._t = renderSlot
   target._q = looseEqual
   target._i = looseIndexOf
-  target._m = renderStatic
+  target._m = renderStatic // 
   target._f = resolveFilter
   target._k = checkKeyCodes
   target._b = bindObjectProps
-  target._v = createTextVNode
+  target._v = createTextVNode // render函数创建文本节点 {{ a }}
   target._e = createEmptyVNode
   target._u = resolveScopedSlots
   target._g = bindObjectListeners

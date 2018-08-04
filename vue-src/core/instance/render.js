@@ -26,6 +26,7 @@ export function initRender (vm: Component) {
   // so that we get proper render context inside it.
   // args order: tag, data, children, normalizationType, alwaysNormalize
   // internal version is used by render functions compiled from templates
+  // render函数：_c相当于Vue中的createElement创建元素节点 (其余定义在core/instance/render-helpers/index.js)
   vm._c = (a, b, c, d) => createElement(vm, a, b, c, d, false)
   // normalization is always applied for the public version, used in
   // user-written render functions.
@@ -59,6 +60,8 @@ export function renderMixin (Vue: Class<Component>) {
 
   Vue.prototype._render = function (): VNode {
     const vm: Component = this
+    // 解构出 $options 中的 render 函数
+    // vm.$options.render 方法是在 web-runtime-with-compiler.js 文件中通过 compileToFunctions 方法将 template 或 el 编译而来的
     const { render, _parentVnode } = vm.$options
 
     if (vm._isMounted) {
@@ -80,6 +83,9 @@ export function renderMixin (Vue: Class<Component>) {
     // render self
     let vnode
     try {
+      // 运行 render 函数。
+      // 指定了 render 函数的作用域环境为 vm._renderProxy, 他是在 Vue.prototype._init 方法中被添加的，即：vm._renderProxy = vm，其实就是Vue实例对象本身
+      // 然后传递了一个参数：vm.$createElement
       vnode = render.call(vm._renderProxy, vm.$createElement)
     } catch (e) {
       handleError(e, vm, `render`)

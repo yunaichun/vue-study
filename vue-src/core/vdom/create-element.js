@@ -23,6 +23,7 @@ const ALWAYS_NORMALIZE = 2
 
 // wrapper function for providing a more flexible interface
 // without getting yelled at by flow
+// render函数：创建元素节点
 export function createElement (
   context: Component,
   tag: any,
