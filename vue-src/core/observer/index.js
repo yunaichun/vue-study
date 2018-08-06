@@ -82,7 +82,7 @@ export class Observer {
   /**
    * Observe a list of Array items.
    */
-  // 对数组的每一个成员进行observe
+  // 对数组的每一个成员进行observe (这种方法效率较低，所以优先使用第一种)
   observeArray (items: Array<any>) {
     for (let i = 0, l = items.length; i < l; i++) {
        // 数组需要遍历每一个成员进行observe(数组可能嵌套数组或对象)
@@ -133,6 +133,7 @@ export function observe (value: any, asRootData: ?boolean): Observer | void {
     // 已经存在observer实例
     ob = value.__ob__
   } else if (
+    // 这里的判断是为了确保value是单纯的对象，而不是函数或者是Regexp等情况
     observerState.shouldConvert &&
     !isServerRendering() && // 不是服务端渲染
     (Array.isArray(value) || isPlainObject(value)) && //是数组或者对象
@@ -172,6 +173,8 @@ export function defineReactive (
   }
 
   // cater for pre-defined getter/setters
+  // 如果之前该对象已经预设了getter以及setter函数则将其取出来，新定义的getter/setter中会将其执行，
+  // 保证不会覆盖之前已经定义的getter/setter。
   const getter = property && property.get
   const setter = property && property.set
 

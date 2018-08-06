@@ -5,6 +5,7 @@ export const emptyObject = Object.freeze({})
 /**
  * Check if a string starts with $ or _
  */
+// 检测字符串是否以 $ 或者 _ 开头
 export function isReserved (str: string): boolean {
   const c = (str + '').charCodeAt(0)
   return c === 0x24 || c === 0x5F

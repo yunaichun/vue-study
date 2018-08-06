@@ -35,7 +35,107 @@ const sharedPropertyDefinition = {
   set: noop
 }
 
-// proxy(vm, `_data`, key)
+export function initState (vm: Component) {
+  vm._watchers = []
+  const opts = vm.$options
+  // 初始化data
+  if (opts.data) {
+    initData(vm)
+  } else {
+    observe(vm._data = {}, true /* asRootData */)
+  }
+  // 初始化props
+  if (opts.props) initProps(vm, opts.props)
+  // 初始化methods
+  if (opts.methods) initMethods(vm, opts.methods)
+  // 初始化computed
+  if (opts.computed) initComputed(vm, opts.computed)
+  // 初始化watch
+  if (opts.watch && opts.watch !== nativeWatch) {
+    initWatch(vm, opts.watch)
+  }
+}
+
+/**
+ * [initData 初始化Vue的data]
+ * @param  {[type]} vm  [description]
+ * @return {[type]}     [description]
+ */
+function initData (vm: Component) {
+  let data = vm.$options.data
+  // 此时 vm.$options.data 的值应该是通过 mergeOptions 合并处理后的 mergedInstanceDataFn 函数，
+  // 所以判断data是不是'function'，接着实例对象上定义 _data 属性，该属性与 data 是相同的引用
+  data = vm._data = typeof data === 'function'
+    ? getData(data, vm)
+    : data || {}
+  // 组件的数据选项必须是一个函数，以便每个实例都可以维护返回的数据对象的独立副本：
+  // 如果data选项不是function，一个实例的data将影响所有其他实例的数据
+  if (!isPlainObject(data)) {
+    data = {}
+    process.env.NODE_ENV !== 'production' && warn(
+      'data functions should return an object:\n' +
+      'https://vuejs.org/v2/guide/components.html#data-Must-Be-a-Function',
+      vm
+    )
+  }
+  // proxy data on instance
+  // 遍历data对象
+  const keys = Object.keys(data)
+  const props = vm.$options.props
+  const methods = vm.$options.methods
+  let i = keys.length
+  // 循环的目的是在实例对象上对数据进行代理，这样我们就能通过 this.a 来访问 data.a 了
+  // 代码的处理是在 proxy 函数中，该函数是在实例对象上设置与 data 属性同名的访问器属性，然后使用 _data 做数据劫持
+  while (i--) {
+    const key = keys[i]
+    if (process.env.NODE_ENV !== 'production') {
+      // vue methods中存在和data中同名的数据属性
+      if (methods && hasOwn(methods, key)) {
+        warn(
+          `Method "${key}" has already been defined as a data property.`,
+          vm
+        )
+      }
+    }
+    // vue props中存在和data中同名的数据属性
+    if (props && hasOwn(props, key)) {
+      process.env.NODE_ENV !== 'production' && warn(
+        `The data property "${key}" is already declared as a prop. ` +
+        `Use prop default value instead.`,
+        vm
+      )
+    } 
+    // data属性名不是$或_开头的话，设置数据代理
+    else if (!isReserved(key)) {
+      // 数据代理：app.text = app._data.text
+      proxy(vm, `_data`, key)
+    }
+  }
+  // observe data
+  // 做完数据的代理，就正式进入响应系统
+  observe(data, true /* asRootData */)
+}
+/**
+ * [getData 获取数据]
+ * @param  {[type]} data: Function      [初始数据]
+ * @param  {[type]} vm:   Component     [Vue实例]
+ * @return {[type]}       [description]
+ */
+function getData (data: Function, vm: Component): any {
+  try {
+    return data.call(vm, vm)
+  } catch (e) {
+    handleError(e, vm, `data()`)
+    return {}
+  }
+}
+/**
+ * [proxy 设置数据代理]
+ * @param  {[type]} target:    Object        [vue实例]
+ * @param  {[type]} sourceKey: string        [_data]
+ * @param  {[type]} key:       string        [key]
+ * @return {[type]}            [description]
+ */
 export function proxy (target: Object, sourceKey: string, key: string) {
   sharedPropertyDefinition.get = function proxyGetter () {
     return this[sourceKey][key] // this._data[key]
@@ -44,33 +144,6 @@ export function proxy (target: Object, sourceKey: string, key: string) {
     this[sourceKey][key] = val // this._data[key] = val;
   }
   Object.defineProperty(target, key, sharedPropertyDefinition)
-  // 将key值代理到Vue实例上面去
-  // Object.defineProperty(vm, key, {
-  //     configurable: true,
-  //     enumerable: true,
-  //     get: function proxyGetter () {
-  //         return that._data[key];
-  //     },
-  //     set: function proxySetter (val) {
-  //         that._data[key] = val;
-  //     }
-  // })
-}
-
-export function initState (vm: Component) {
-  vm._watchers = []
-  const opts = vm.$options
-  if (opts.props) initProps(vm, opts.props)
-  if (opts.methods) initMethods(vm, opts.methods)
-  if (opts.data) {
-    initData(vm)
-  } else {
-    observe(vm._data = {}, true /* asRootData */)
-  }
-  if (opts.computed) initComputed(vm, opts.computed)
-  if (opts.watch && opts.watch !== nativeWatch) {
-    initWatch(vm, opts.watch)
-  }
 }
 
 function initProps (vm: Component, propsOptions: Object) {
@@ -119,66 +192,7 @@ function initProps (vm: Component, propsOptions: Object) {
   observerState.shouldConvert = true
 }
 
-function initData (vm: Component) {
-  let data = vm.$options.data
-  // ------此时 vm.$options.data 的值应该是通过 mergeOptions 合并处理后的 mergedInstanceDataFn 函数，
-  // ------所以判断data是不是'function'，接着实例对象上定义 _data 属性，该属性与 data 是相同的引用
-  data = vm._data = typeof data === 'function'
-    ? getData(data, vm)
-    : data || {}
-  if (!isPlainObject(data)) {
-    data = {}
-    process.env.NODE_ENV !== 'production' && warn(
-      'data functions should return an object:\n' +
-      'https://vuejs.org/v2/guide/components.html#data-Must-Be-a-Function',
-      vm
-    )
-  }
-  // proxy data on instance
-  const keys = Object.keys(data)
-  const props = vm.$options.props
-  const methods = vm.$options.methods
-  let i = keys.length
-  // ------循环的目的是在实例对象上对数据进行代理，这样我们就能通过 this.a 来访问 data.a 了------
-  // ------代码的处理是在 proxy 函数中，该函数非常简单，仅仅是在实例对象上设置与 data 属性同名的访问器属性，然后使用 _data 做数据劫持------
-  while (i--) {
-    const key = keys[i]
-    if (process.env.NODE_ENV !== 'production') {
-      // vm.options.methods 中有vm.data的key值
-      if (methods && hasOwn(methods, key)) {
-        warn(
-          `Method "${key}" has already been defined as a data property.`,
-          vm
-        )
-      }
-    }
-    // vm.options.props 中有vm.data的key值
-    if (props && hasOwn(props, key)) {
-      process.env.NODE_ENV !== 'production' && warn(
-        `The data property "${key}" is already declared as a prop. ` +
-        `Use prop default value instead.`,
-        vm
-      )
-    } else if (!isReserved(key)) { // key值开头不包含'_'或者'$'，设置数据代理【通过while循环让所有的数据都实现代理】
-      proxy(vm, `_data`, key) // target: Object, sourceKey: string, key: string【这样我们就可以用app.text代替app._data.text】
-    }
-  }
-  // ------做完数据的代理，就正式进入响应系统【(value: any, asRootData: ?boolean】------
-  // observe data
-  observe(data, true /* asRootData */)
-}
-
-function getData (data: Function, vm: Component): any {
-  try {
-    return data.call(vm, vm)
-  } catch (e) {
-    handleError(e, vm, `data()`)
-    return {}
-  }
-}
-
 const computedWatcherOptions = { lazy: true }
-
 function initComputed (vm: Component, computed: Object) {
   const watchers = vm._computedWatchers = Object.create(null)
   // computed properties are just getters during SSR
