@@ -94,6 +94,7 @@ export function toNumber (val: string): number | string {
  * Make a map and return a function for checking if a key
  * is in that map.
  */
+// 生成一个map对象，返回一个函数，判断key值是否在这个map对象中
 export function makeMap (
   str: string,
   expectsLowerCase?: boolean
@@ -103,6 +104,7 @@ export function makeMap (
   for (let i = 0; i < list.length; i++) {
     map[list[i]] = true
   }
+  // 返回一个函数，函数返回这个map对象的某个属性 (可能是不存在的某个属性名)
   return expectsLowerCase
     ? val => map[val.toLowerCase()]
     : val => map[val]
