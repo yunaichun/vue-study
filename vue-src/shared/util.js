@@ -43,7 +43,7 @@ export function isObject (obj: mixed): boolean %checks {
  * Get the raw type string of a value e.g. [object Object]
  */
 const _toString = Object.prototype.toString
-
+// 返回参数值得JS类型
 export function toRawType (value: any): string {
   return _toString.call(value).slice(8, -1)
 }
@@ -118,6 +118,7 @@ export const isBuiltInTag = makeMap('slot,component', true)
 /**
  * Check if a attribute is a reserved attribute.
  */
+// makeMap生成一个map对象，返回一个函数，判断key值是否在这个map对象中
 export const isReservedAttribute = makeMap('key,ref,slot,slot-scope,is')
 
 /**
@@ -167,6 +168,7 @@ export const camelize = cached((str: string): string => {
 /**
  * Capitalize a string.
  */
+// 首字母大写
 export const capitalize = cached((str: string): string => {
   return str.charAt(0).toUpperCase() + str.slice(1)
 })
@@ -174,8 +176,13 @@ export const capitalize = cached((str: string): string => {
 /**
  * Hyphenate a camelCase string.
  */
+// 连接一个camelCase字符串('AbcPAE' -> 'abc-p-a-e')
+// 'AbcPAE'.match(hyphenateRE) -> ["P", "A", "E"]
+// \b单词边界，如果字符的左右两边有空白字符则为单词边界
+// \B'非单词边界'字符左右两边没有空白字符 
 const hyphenateRE = /\B([A-Z])/g
 export const hyphenate = cached((str: string): string => {
+  // $1指的是匹配到的位置，在reg正则表达式里的几对"()"，$1指的是匹配的第一个括号
   return str.replace(hyphenateRE, '-$1').toLowerCase()
 })
 

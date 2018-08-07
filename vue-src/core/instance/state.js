@@ -28,13 +28,19 @@ import {
   isReservedAttribute
 } from '../util/index'
 
+// 文件中共享的访问器属性定义
 const sharedPropertyDefinition = {
   enumerable: true,
   configurable: true,
-  get: noop,
-  set: noop
+  get: noop, // 初始未空函数
+  set: noop // 初始未空函数
 }
 
+/**
+ * [initState 初始化state]
+ * @param  {[type]} vm: Component     [Vue实例]
+ * @return {[type]}                   [description]
+ */
 export function initState (vm: Component) {
   vm._watchers = []
   const opts = vm.$options
@@ -57,8 +63,8 @@ export function initState (vm: Component) {
 }
 
 /**
- * [initData 初始化Vue的data]
- * @param  {[type]} vm  [description]
+ * [initData 初始化Vue的data选项]
+ * @param  {[type]} vm  [Vue实例]
  * @return {[type]}     [description]
  */
 function initData (vm: Component) {
@@ -116,10 +122,10 @@ function initData (vm: Component) {
   observe(data, true /* asRootData */)
 }
 /**
- * [getData 获取数据]
- * @param  {[type]} data: Function      [初始数据]
+ * [getData 获取数据：vm.$options.data是一个函数]
+ * @param  {[type]} data: Function      [初始data选项数据]
  * @param  {[type]} vm:   Component     [Vue实例]
- * @return {[type]}       [description]
+ * @return {[type]}                     [description]
  */
 function getData (data: Function, vm: Component): any {
   try {
@@ -134,7 +140,7 @@ function getData (data: Function, vm: Component): any {
  * @param  {[type]} target:    Object        [vue实例]
  * @param  {[type]} sourceKey: string        [_data]
  * @param  {[type]} key:       string        [key]
- * @return {[type]}            [description]
+ * @return {[type]}                          [description]
  */
 export function proxy (target: Object, sourceKey: string, key: string) {
   sharedPropertyDefinition.get = function proxyGetter () {
@@ -146,30 +152,50 @@ export function proxy (target: Object, sourceKey: string, key: string) {
   Object.defineProperty(target, key, sharedPropertyDefinition)
 }
 
+/**
+ * [initProps 初始化Vue的props选项]
+ * @param  {[type]} vm:           Component     [Vue实例]
+ * @param  {[type]} propsOptions: Object        [初始props选项数据]
+ * @return {[type]}                             [description]
+ */
 function initProps (vm: Component, propsOptions: Object) {
+  // https://blog.csdn.net/BorderBox/article/details/76650869
+  // 全局扩展的数据传递: Vue.extend
   const propsData = vm.$options.propsData || {}
+  // 缓存props对象 (引用传递)
   const props = vm._props = {}
   // cache prop keys so that future props updates can iterate using Array
   // instead of dynamic object key enumeration.
+  // 缓存props属性的key (引用传递)
   const keys = vm.$options._propKeys = []
   const isRoot = !vm.$parent
   // root instance props should be converted
+  // 根结点会给shouldConvert赋true，根结点的props应该被转换
   observerState.shouldConvert = isRoot
-  for (const key in propsOptions) {
+  // 遍历属性props对象
+  for (const key in propsOptions) { 
+    // props的key值存入keys中【由于数组为引用传递，同时存入vm.$options._propKeys】
     keys.push(key)
+    // 获取props为key对应的属性值
     const value = validateProp(key, propsOptions, propsData, vm)
     /* istanbul ignore else */
+    // 开发环境
     if (process.env.NODE_ENV !== 'production') {
+      // 获取prop的key的连字符('AbcPAE' -> 'abc-p-a-e')
       const hyphenatedKey = hyphenate(key)
+      // 当前prop的key值是否有(key,ref,slot,slot-scope,is)
       if (isReservedAttribute(hyphenatedKey) ||
-          config.isReservedAttr(hyphenatedKey)) {
+          config.isReservedAttr(hyphenatedKey)) { // prop属性名是保留字符
         warn(
           `"${hyphenatedKey}" is a reserved attribute and cannot be used as component prop.`,
           vm
         )
       }
+      // 将props对象的属性key转换为访问器属性
       defineReactive(props, key, value, () => {
         if (vm.$parent && !isUpdatingChildComponent) {
+          // 由于父组件重新渲染的时候会重写prop的值，所以应该直接使用prop来作为一个data或者计算属性的依赖
+          // https://cn.vuejs.org/v2/guide/components.html#字面量语法-vs-动态语法
           warn(
             `Avoid mutating a prop directly since the value will be ` +
             `overwritten whenever the parent component re-renders. ` +
@@ -179,19 +205,30 @@ function initProps (vm: Component, propsOptions: Object) {
           )
         }
       })
-    } else {
+    } else { // 生产环境
+      // 将props对象的属性key转换为访问器属性
       defineReactive(props, key, value)
     }
     // static props are already proxied on the component's prototype
     // during Vue.extend(). We only need to proxy props defined at
     // instantiation here.
+    // 静态prop在Vue.extend()期间已经在组件原型上代理了
+    // 我们只需要在这里进行代理prop
     if (!(key in vm)) {
+      // 数据代理：app.text = app._props.text
       proxy(vm, `_props`, key)
     }
   }
   observerState.shouldConvert = true
 }
 
+
+/**
+ * [initComputed 初始化Vue的computed选项]
+ * @param  {[type]} vm:       Component     [Vue实例]
+ * @param  {[type]} computed: Object        [初始computed选项数据]
+ * @return {[type]}                         [description]
+ */
 const computedWatcherOptions = { lazy: true }
 function initComputed (vm: Component, computed: Object) {
   const watchers = vm._computedWatchers = Object.create(null)
@@ -232,7 +269,6 @@ function initComputed (vm: Component, computed: Object) {
     }
   }
 }
-
 export function defineComputed (
   target: any,
   key: string,
@@ -265,7 +301,6 @@ export function defineComputed (
   }
   Object.defineProperty(target, key, sharedPropertyDefinition)
 }
-
 function createComputedGetter (key) {
   return function computedGetter () {
     const watcher = this._computedWatchers && this._computedWatchers[key]
@@ -281,6 +316,12 @@ function createComputedGetter (key) {
   }
 }
 
+/**
+ * [initMethods 初始化Vue的methods选项]
+ * @param  {[type]} vm:      Component     [Vue实例]
+ * @param  {[type]} methods: Object        [初始methods选项数据]
+ * @return {[type]}                        [description]
+ */
 function initMethods (vm: Component, methods: Object) {
   const props = vm.$options.props
   for (const key in methods) {
@@ -309,6 +350,12 @@ function initMethods (vm: Component, methods: Object) {
   }
 }
 
+/**
+ * [initWatch 初始化Vue的watch选项]
+ * @param  {[type]} vm:    Component     [Vue实例]
+ * @param  {[type]} watch: Object        [初始watch选项数据]
+ * @return {[type]}                      [description]
+ */
 function initWatch (vm: Component, watch: Object) {
   for (const key in watch) {
     const handler = watch[key]
@@ -321,7 +368,6 @@ function initWatch (vm: Component, watch: Object) {
     }
   }
 }
-
 function createWatcher (
   vm: Component,
   keyOrFn: string | Function,
