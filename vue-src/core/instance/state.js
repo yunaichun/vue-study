@@ -222,7 +222,6 @@ function initProps (vm: Component, propsOptions: Object) {
   observerState.shouldConvert = true
 }
 
-
 /**
  * [initComputed 初始化Vue的computed选项]
  * @param  {[type]} vm:       Component     [Vue实例]
@@ -231,22 +230,30 @@ function initProps (vm: Component, propsOptions: Object) {
  */
 const computedWatcherOptions = { lazy: true }
 function initComputed (vm: Component, computed: Object) {
+  // 为计算属性创建一个内部的监视器Watcher，保存在vm实例的_computedWatchers中 (引用传递)
   const watchers = vm._computedWatchers = Object.create(null)
   // computed properties are just getters during SSR
+  // 服务端渲染
   const isSSR = isServerRendering()
 
   for (const key in computed) {
+    // 获取computed的函数名为key的函数
     const userDef = computed[key]
+    // 计算属性可能是一个function，也有可能设置了get以及set的对象。
+    // 可以参考 https://cn.vuejs.org/v2/guide/computed.html#计算-setter
     const getter = typeof userDef === 'function' ? userDef : userDef.get
+    // 开发环境中，没有设置getter
     if (process.env.NODE_ENV !== 'production' && getter == null) {
       warn(
         `Getter is missing for computed property "${key}".`,
         vm
       )
     }
-
+    // 非服务端渲染
     if (!isSSR) {
       // create internal watcher for the computed property.
+      // 为计算属性创建一个内部的监视器Watcher，保存在vm实例的_computedWatchers中
+      // 这里的computedWatcherOptions参数传递了一个lazy为true，会使得watch实例的dirty为true
       watchers[key] = new Watcher(
         vm,
         getter || noop,
@@ -258,38 +265,52 @@ function initComputed (vm: Component, computed: Object) {
     // component-defined computed properties are already defined on the
     // component prototype. We only need to define computed properties defined
     // at instantiation here.
+    // 组件正在定义的计算属性已经定义在现有组件的原型上，则不会进行重复定义
+    // 我们只需要定义实例化的计算属性
     if (!(key in vm)) {
       defineComputed(vm, key, userDef)
     } else if (process.env.NODE_ENV !== 'production') {
+      // computed的key值在选项data中
       if (key in vm.$data) {
         warn(`The computed property "${key}" is already defined in data.`, vm)
-      } else if (vm.$options.props && key in vm.$options.props) {
+      } 
+      // props存在，且computed的key值在选项props中
+      else if (vm.$options.props && key in vm.$options.props) {
         warn(`The computed property "${key}" is already defined as a prop.`, vm)
       }
     }
   }
 }
+// 定义计算属性
 export function defineComputed (
   target: any,
   key: string,
   userDef: Object | Function
 ) {
   const shouldCache = !isServerRendering()
+  // 计算属性是一个function
   if (typeof userDef === 'function') {
+    // 创建计算属性的getter
     sharedPropertyDefinition.get = shouldCache
-      ? createComputedGetter(key)
-      : userDef
+      ? createComputedGetter(key) // 浏览器端
+      : userDef // 服务端
+    // 当userDef是一个function的时候是不需要setter的，所以这边给它设置成了空函数。
+    // 因为计算属性默认是一个function，只设置getter。
+    // 当需要设置setter的时候，会将计算属性设置成一个对象。参考：https://cn.vuejs.org/v2/guide/computed.html#计算-setter
     sharedPropertyDefinition.set = noop
-  } else {
-    sharedPropertyDefinition.get = userDef.get
-      ? shouldCache && userDef.cache !== false
-        ? createComputedGetter(key)
+  }
+  // 计算属性是一个get以及set的对象
+  else {
+    sharedPropertyDefinition.get = userDef.get // get存在
+      ? shouldCache && userDef.cache !== false // 浏览器端，且计算属性的cache属性不为false
+        ? createComputedGetter(key) 
         : userDef.get
-      : noop
+      : noop // get不存在
     sharedPropertyDefinition.set = userDef.set
       ? userDef.set
       : noop
   }
+  // 开发环境中，计算属性set为空函数的话
   if (process.env.NODE_ENV !== 'production' &&
       sharedPropertyDefinition.set === noop) {
     sharedPropertyDefinition.set = function () {
@@ -299,18 +320,28 @@ export function defineComputed (
       )
     }
   }
+  // 将计算属性变为访问器属性
   Object.defineProperty(target, key, sharedPropertyDefinition)
 }
+// 创建计算属性的getter：传入计算属性的key名称
 function createComputedGetter (key) {
+  // 返回一个函数
   return function computedGetter () {
+    // 计算属性一个内部的监视器Watcher，保存在vm实例的_computedWatchers中
     const watcher = this._computedWatchers && this._computedWatchers[key]
     if (watcher) {
+      // 实际是脏检查，在计算属性中的依赖发生改变的时候dirty会变成true
+      // 在get的时候重新计算计算属性的输出值，计算完成后this.dirty = false
       if (watcher.dirty) {
+        // 实际调用: watcher.get() -> watcher.getter() -> computed.get()
         watcher.evaluate()
       }
+      // 依赖收集
       if (Dep.target) {
+        // watcher调用Dep的方法: 收集该watcher的所有deps依赖
         watcher.depend()
       }
+      // 返回computed.get()的值
       return watcher.value
     }
   }
