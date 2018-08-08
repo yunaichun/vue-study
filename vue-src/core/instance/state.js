@@ -357,6 +357,7 @@ function initMethods (vm: Component, methods: Object) {
   const props = vm.$options.props
   for (const key in methods) {
     if (process.env.NODE_ENV !== 'production') {
+      // 方法为空
       if (methods[key] == null) {
         warn(
           `Method "${key}" has an undefined value in the component definition. ` +
@@ -364,12 +365,14 @@ function initMethods (vm: Component, methods: Object) {
           vm
         )
       }
+      // 与props名称冲突报出warning
       if (props && hasOwn(props, key)) {
         warn(
           `Method "${key}" has already been defined as a prop.`,
           vm
         )
       }
+      // 与Vue的实例方法冲突
       if ((key in vm) && isReserved(key)) {
         warn(
           `Method "${key}" conflicts with an existing Vue instance method. ` +
@@ -377,6 +380,8 @@ function initMethods (vm: Component, methods: Object) {
         )
       }
     }
+    // method为key的方法为null的时候写上空方法，有值时候将上下文替换成vm
+    // 然后可以通过this.methodname 去执行 methods[key]
     vm[key] = methods[key] == null ? noop : bind(methods[key], vm)
   }
 }
