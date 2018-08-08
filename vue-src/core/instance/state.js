@@ -395,6 +395,8 @@ function initMethods (vm: Component, methods: Object) {
 function initWatch (vm: Component, watch: Object) {
   for (const key in watch) {
     const handler = watch[key]
+    // 数组则遍历进行createWatcher
+    // 参考watch参数：https://cn.vuejs.org/v2/api/#watch
     if (Array.isArray(handler)) {
       for (let i = 0; i < handler.length; i++) {
         createWatcher(vm, key, handler[i])
@@ -404,22 +406,42 @@ function initWatch (vm: Component, watch: Object) {
     }
   }
 }
+// 创建一个观察者Watcher
 function createWatcher (
-  vm: Component,
-  keyOrFn: string | Function,
-  handler: any,
+  vm: Component, // Vue实例
+  keyOrFn: string | Function, // watch的key名称
+  handler: any, // watch的key对应的值
   options?: Object
 ) {
+  // 对对象类型进行严格检查，只有当对象是纯javascript对象的时候返回true
   if (isPlainObject(handler)) {
+    /*
+      这里是当watch的写法是这样的时候
+      watch: {
+          test: {
+              handler: function () {},
+              deep: true
+          }
+      }
+    */
     options = handler
     handler = handler.handler
   }
   if (typeof handler === 'string') {
+    // 当然，也可以直接使用vm中methods的方法
     handler = vm[handler]
   }
-  return vm.$watch(keyOrFn, handler, options)
+  // 用$watch方法创建一个watch来观察该对象的变化
+  return vm.$watch(keyOrFn, handler, options) // key、cb
 }
 
+
+
+/**
+ * [stateMixin description]
+ * @param  {[type]} Vue: Class<Component> [description]
+ * @return {[type]}                       [description]
+ */
 export function stateMixin (Vue: Class<Component>) {
   // flow somehow has problems with directly declared definition object
   // when using Object.defineProperty, so we have to procedurally build up
@@ -440,12 +462,27 @@ export function stateMixin (Vue: Class<Component>) {
       warn(`$props is readonly.`, this)
     }
   }
+  // 数据绑定: 将$data加在Vue.prototype上
   Object.defineProperty(Vue.prototype, '$data', dataDef)
+  // 数据绑定: 将$props加在Vue.prototype上
   Object.defineProperty(Vue.prototype, '$props', propsDef)
 
+  /*
+    https://cn.vuejs.org/v2/api/#vm-set
+    用以将data之外的对象绑定成响应式的
+  */
   Vue.prototype.$set = set
+  /*
+    https://cn.vuejs.org/v2/api/#vm-delete
+    与set对立，解除绑定
+  */
   Vue.prototype.$delete = del
 
+  /*
+    https://cn.vuejs.org/v2/api/#vm-watch
+    $watch方法
+    用以为对象建立观察者监视变化
+  */
   // $watch是对Watcher的封装
   Vue.prototype.$watch = function (
     expOrFn: string | Function,
@@ -453,16 +490,22 @@ export function stateMixin (Vue: Class<Component>) {
     options?: Object
   ): Function {
     const vm: Component = this
+    // cb是对象的话
     if (isPlainObject(cb)) {
+      // 创建一个观察者Watcher
       return createWatcher(vm, expOrFn, cb, options)
     }
     options = options || {}
+    // 用户手动创建观察者
     options.user = true
+    // 实例Watcher观察者
     const watcher = new Watcher(vm, expOrFn, cb, options)
     // 有immediate参数的时候会立即执行
     if (options.immediate) {
+      // 传入观察者的值，立即执行
       cb.call(vm, watcher.value)
     }
+    
     // 返回一个取消观察函数，用来停止触发回调
     return function unwatchFn () {
       // 将自身从所有依赖收集订阅列表删除
