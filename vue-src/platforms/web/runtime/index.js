@@ -4,7 +4,7 @@
 2、Vue 下的静态属性和方法的挂载主要是在 src/core/global-api 目录下的代码处理的
 
 3、web-runtime.js 主要是添加web平台特有的配置、组件和指令，
-web-runtime-with-compiler.js 给Vue的 $mount 方法添加 compiler 编译器，支持 template，将模板 template 编译为render函数。
+   web-runtime-with-compiler.js 给Vue的 $mount 方法添加 compiler 编译器，支持 template，将模板 template 编译为render函数。
 */
 
 /* @flow */
@@ -36,7 +36,21 @@ Vue.config.getTagNamespace = getTagNamespace
 Vue.config.isUnknownElement = isUnknownElement
 
 // install platform runtime directives & components
-// ------[/src/core/global-api/index.js 也会挂载静态属性和方法，会在此合并这些配置项]------
+/* 安装平台特定的 指令 和 组件 (/src/core/global-api/index.js)
+  Vue.options = {
+      components: {
+          KeepAlive,
+          Transition,
+          TransitionGroup
+      },
+      directives: {
+          model,
+          show
+      },
+      filters: {},
+      _base: Vue
+}
+ */
 extend(Vue.options.directives, platformDirectives)
 extend(Vue.options.components, platformComponents)
 
@@ -50,6 +64,8 @@ Vue.prototype.$mount = function (
   el?: string | Element,
   hydrating?: boolean
 ): Component {
+  // 首先根据是否是浏览器环境决定要不要 query(el) 获取元素，
+  // 然后将 el 作为参数传递给 this._mount()。
   el = el && inBrowser ? query(el) : undefined
   // 调用lifecycle生命周期中的挂载组件mountComponent函数 (core/instance/lifecycle.js)
   return mountComponent(this, el, hydrating)

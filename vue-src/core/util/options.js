@@ -257,9 +257,11 @@ const defaultStrat = function (parentVal: any, childVal: any): any {
 /**
  * Validate component names
  */
+// 验证组件注册的名称是否正确
 function checkComponents (options: Object) {
   for (const key in options.components) {
     const lower = key.toLowerCase()
+    // components的name为slot和component，或者component名称已经注册过
     if (isBuiltInTag(lower) || config.isReservedTag(lower)) {
       warn(
         'Do not use built-in or reserved HTML elements as component ' +
@@ -273,11 +275,14 @@ function checkComponents (options: Object) {
  * Ensure all props option syntax are normalized into the
  * Object-based format.
  */
-function normalizeProps (options: Object, vm: ?Component) {
+// 将options中的props属性转换成对象的形式
+// 因为props有些传入的时候可能会是数组的形式
+function normalizeProps (options: Object, vm: ?Component) { // options为实例化时传入的options, vm是Vue实例
   const props = options.props
   if (!props) return
   const res = {}
   let i, val, name
+  // props是数组的情况：props: ['postTitle']
   if (Array.isArray(props)) {
     i = props.length
     while (i--) {
@@ -289,7 +294,9 @@ function normalizeProps (options: Object, vm: ?Component) {
         warn('props must be strings when using array syntax.')
       }
     }
-  } else if (isPlainObject(props)) {
+  } 
+  // props是对象：props: { propC: { type: String, required: true } }
+  else if (isPlainObject(props)) {
     for (const key in props) {
       val = props[key]
       name = camelize(key)
@@ -297,13 +304,16 @@ function normalizeProps (options: Object, vm: ?Component) {
         ? val
         : { type: val }
     }
-  } else if (process.env.NODE_ENV !== 'production' && props) {
+  } 
+  // props不是对象和数组，开发环境报错
+  else if (process.env.NODE_ENV !== 'production' && props) {
     warn(
       `Invalid value for option "props": expected an Array or an Object, ` +
       `but got ${toRawType(props)}.`,
       vm
     )
   }
+  // 生成封装后的props
   options.props = res
 }
 
@@ -362,23 +372,27 @@ function assertObjectType (name: string, value: any, vm: ?Component) {
  * Merge two option objects into a new one.
  * Core utility used in both instantiation and inheritance.
  */
-// ------3、mergeOptions 中根据参数选项调用同名的策略方法进行合并处理------
+// 合并两个options对象,并生成一个新的对象。
+// 是实例化和继承中使用的核心方法。
 export function mergeOptions (
-  parent: Object,
-  child: Object,
-  vm?: Component
+  parent: Object, // 构造函数上的options
+  child: Object, // 实例化时传入的options
+  vm?: Component // vm实例本身
 ): Object {
   if (process.env.NODE_ENV !== 'production') {
+    // // 验证组件注册的名称是否正确
     checkComponents(child)
   }
-
+  // 如果child是function类型的话，我们取其options属性作为child
   if (typeof child === 'function') {
     child = child.options
   }
-
+  // 分别是把options中的props,inject,directives属性转换成对象的形式
+  // 因为有些传入的时候可能会是数组的形式
   normalizeProps(child, vm)
   normalizeInject(child, vm)
   normalizeDirectives(child)
+
   const extendsFrom = child.extends
   if (extendsFrom) {
     parent = mergeOptions(parent, extendsFrom, vm)

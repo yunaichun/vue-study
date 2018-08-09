@@ -4,7 +4,7 @@
 2、Vue 下的静态属性和方法的挂载主要是在 src/core/global-api 目录下的代码处理的
 
 3、web-runtime.js 主要是添加web平台特有的配置、组件和指令，
-web-runtime-with-compiler.js 给Vue的 $mount 方法添加 compiler 编译器，支持 template，将模板 template 编译为render函数。
+   web-runtime-with-compiler.js 给Vue的 $mount 方法添加 compiler 编译器，支持 template，将模板 template 编译为render函数。
 */
 
 /* @flow */
@@ -125,6 +125,8 @@ function getOuterHTML (el: Element): string {
     return container.innerHTML
   }
 }
+
+// 在 Vue 上挂载 compile，支持 template
 // compileToFunctions函数的作用，就是将模板 template 编译为render函数 (web/compiler/index.js)
 Vue.compile = compileToFunctions
 

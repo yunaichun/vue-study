@@ -16,6 +16,8 @@ export function initExtend (Vue: GlobalAPI) {
   /**
    * Class inheritance
    */
+  // Vue是Vue.extend创建的"子类"
+  // Vue.super是通过Vue.extend构造子类的时候
   Vue.extend = function (extendOptions: Object): Function {
     extendOptions = extendOptions || {}
     const Super = this
@@ -76,8 +78,25 @@ export function initExtend (Vue: GlobalAPI) {
     // keep a reference to the super options at extension time.
     // later at instantiation we can check if Super's options have
     // been updated.
+    /*
+      var Profile = Vue.extend({
+         template: '<p>{{firstName}} {{lastName}} aka {{alias}}</p>'
+      })
+      Vue.mixin({ data: function () {
+        return {
+          firstName: 'Walter',
+          lastName: 'White',
+          alias: 'Heisenberg'
+        }
+      }})
+      new Profile().$mount('#example')  // (其中Profile为父类，Vue是子类)
+      Vue.mixin改变了"父类"options。
+    */
+    // Sub.superOptions指向基础构造器的options
     Sub.superOptions = Super.options
+    // 构造"自身"时传入的options (Vue.extend中的options)
     Sub.extendOptions = extendOptions
+    // 执行Vue.extend时封装的"自身"options，这个属性就是方便检查"自身"的options有没有变化 (Vue.minin中的options)
     Sub.sealedOptions = extend({}, Sub.options)
 
     // cache constructor

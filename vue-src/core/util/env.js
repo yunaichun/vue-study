@@ -44,8 +44,10 @@ export const isServerRendering = () => {
     if (!inBrowser && typeof global !== 'undefined') {
       // detect presence of vue-server-renderer and avoid
       // Webpack shimming the process
+      // 服务端：检测VUE服务器渲染器的存在并避免Webpack shimming进程
       _isServer = global['process'].env.VUE_ENV === 'server'
     } else {
+      // 非服务端
       _isServer = false
     }
   }

@@ -4,7 +4,7 @@
 2、Vue 下的静态属性和方法的挂载主要是在 src/core/global-api 目录下的代码处理的
 
 3、web-runtime.js 主要是添加web平台特有的配置、组件和指令，
-web-runtime-with-compiler.js 给Vue的 $mount 方法添加 compiler 编译器，支持 template，将模板 template 编译为render函数。
+   web-runtime-with-compiler.js 给Vue的 $mount 方法添加 compiler 编译器，支持 template，将模板 template 编译为render函数。
 */
 
 /* @flow */
@@ -53,6 +53,17 @@ export function initGlobalAPI (Vue: GlobalAPI) {
   Vue.delete = del
   Vue.nextTick = nextTick
 
+
+  /* 在 Vue 构造函数上挂载静态属性和方法
+    Vue.options = {
+        components: {
+            KeepAlive
+        },
+        directives: {},
+        filters: {},
+        _base: Vue
+    }
+  */
   Vue.options = Object.create(null)
   ASSET_TYPES.forEach(type => {
     Vue.options[type + 's'] = Object.create(null)
@@ -60,6 +71,7 @@ export function initGlobalAPI (Vue: GlobalAPI) {
 
   // this is used to identify the "base" constructor to extend all plain-object
   // components with in Weex's multi-instance scenarios.
+  // _base被用来标识基本构造函数（也就是Vue），以便在多场景下添加组件扩展
   Vue.options._base = Vue
 
   extend(Vue.options.components, builtInComponents)

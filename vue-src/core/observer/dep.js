@@ -38,7 +38,7 @@ export default class Dep {
     }
   }
 
-  // 通知所有观察
+  // 手动通知所有观察者：可能是对对象添加或者删除某个属性值
   notify () {
     // stabilize the subscriber list first
     const subs = this.subs.slice()

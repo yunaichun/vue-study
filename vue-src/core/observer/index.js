@@ -233,34 +233,46 @@ export function defineReactive (
  * triggers change notification if the property doesn't
  * already exist.
  */
+// 用以将data之外的对象绑定成响应式的
 // 在对象上添加一个新的属性，并且给此属性值设置为观察者
+// https://cn.vuejs.org/v2/api/#vm-set
 export function set (target: Array<any> | Object, key: any, val: any): any {
-  // data是数组直接用数组方法设置
+  // target是数组：向target数组中插入val(索引为key)，同时返回此val
   if (Array.isArray(target) && isValidArrayIndex(key)) {
     target.length = Math.max(target.length, key)
     target.splice(key, 1, val)
+    // 因为数组不需要进行响应式处理，数组会修改七个Array原型上的方法来进行响应式处理
     return val
   }
-  // target对象或数组有key属性，替换此值
+  // target是对象target中含有此key：替换此target索引为key的值为val，同时返回此val
   if (hasOwn(target, key)) {
     target[key] = val
     return val
   }
+  // 获得target的Oberver实例
   const ob = (target: any).__ob__
+  // _isVue 一个防止vm实例自身被观察的标志位 ，_isVue为true则代表vm实例，也就是this
+  // vmCount判断是否为根节点，存在则代表是data的根节点，
+  // Vue 不允许在已经创建的实例上动态添加新的根级响应式属性(root-level reactive property)
   if (target._isVue || (ob && ob.vmCount)) {
+    /*  
+      Vue 不允许在已经创建的实例上动态添加新的根级响应式属性(root-level reactive property)。
+      https://cn.vuejs.org/v2/guide/reactivity.html#检测变化的注意事项
+    */
     process.env.NODE_ENV !== 'production' && warn(
       'Avoid adding reactive properties to a Vue instance or its root $data ' +
       'at runtime - declare it upfront in the data option.'
     )
     return val
   }
-  // target数据是否被实例过：data.__ob__ = new Observer()
+  // target数据未被观测过：data.__ob__ = new Observer()
   if (!ob) {
     target[key] = val
     return val
   }
-  // 变为访问器属性
+  // 为对象defineProperty上在变化时通知的属性
   defineReactive(ob.value, key, val)
+  // 手动通知观察者：target增加了某属性值
   ob.dep.notify()
   return val
 }
@@ -270,28 +282,35 @@ export function set (target: Array<any> | Object, key: any, val: any): any {
  */
 // 删除数组中的某一项
 export function del (target: Array<any> | Object, key: any) {
-  // data是数组直接用数组方法删除
+  // target是数组：向target数组中删除索引为key的值
   if (Array.isArray(target) && isValidArrayIndex(key)) {
     target.splice(key, 1)
     return
   }
+  // 获得target的Oberver实例
   const ob = (target: any).__ob__
   if (target._isVue || (ob && ob.vmCount)) {
+    /*  
+      Vue 不允许删除实例上的根级响应式属性(root-level reactive property)。
+      https://cn.vuejs.org/v2/guide/reactivity.html#检测变化的注意事项
+    */
     process.env.NODE_ENV !== 'production' && warn(
       'Avoid deleting properties on a Vue instance or its root $data ' +
       '- just set it to null.'
     )
     return
   }
-  // target对象或数组是否没有key属性
+  // target中无此key
   if (!hasOwn(target, key)) {
     return
   }
+  // 删除target中key的属性
   delete target[key]
-  // target数据是否被实例过：data.__ob__ = new Observer()
+  // target未被观测过：data.__ob__ = new Observer()
   if (!ob) {
     return
   }
+  // 手动通知观察者：target删除了某属性值
   ob.dep.notify()
 }
 

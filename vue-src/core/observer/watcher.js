@@ -29,8 +29,8 @@ export default class Watcher {
   cb: Function;
   id: number;
   deep: boolean;
-  user: boolean;
-  lazy: boolean;
+  user: boolean; // stateMixin： 用户手动创建观察者 (core/instance/state.js)
+  lazy: boolean; // initComputed，computedWatcherOptions参数传递了一个lazy为true会使得watch实例的dirty为true (core/instance/state.js)
   sync: boolean;
   dirty: boolean;
   active: boolean;
@@ -64,7 +64,7 @@ export default class Watcher {
     this.cb = cb
     this.id = ++uid // uid for batching
     this.active = true
-    this.dirty = this.lazy // for lazy watchers
+    this.dirty = this.lazy // for lazy watchers【进行脏检查用的】
     this.deps = []
     this.newDeps = []
     this.depIds = new Set()
@@ -116,7 +116,8 @@ export default class Watcher {
       // dependencies for deep watching
       // 如果存在deep，则触发每个深层对象的依赖，追踪其变化
       if (this.deep) {
-        // 递归每一个对象或者数组，触发它们的getter，使得对象或数组的每一个成员都被依赖收集，形成一个“深（deep）”依赖关系
+        // 递归每一个对象或者数组，触发它们的getter，
+        // 使得对象或数组的每一个成员都被依赖收集，形成一个“深（deep）”依赖关系
         traverse(value)
       }
       // 将观察者实例从target栈中取出并设置给Dep.target
@@ -226,6 +227,7 @@ export default class Watcher {
    * This only gets called for lazy watchers.
    */
   // 获取观察者的值
+  // 实际是脏检查，在计算属性中的依赖发生改变的时候dirty会变成true
   evaluate () {
     this.value = this.get()
     this.dirty = false
@@ -246,7 +248,7 @@ export default class Watcher {
   /**
    * Remove self from all dependencies' subscriber list.
    */
-  // 将自身从所有依赖收集订阅列表删除
+  // 将自身从所有依赖收集订阅列表删除 (Vue.prototype.$watch封装: /core/instance/state.js)
   teardown () {
     if (this.active) {
       // remove self from vm's watcher list

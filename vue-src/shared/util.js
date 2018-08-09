@@ -113,6 +113,7 @@ export function makeMap (
 /**
  * Check if a tag is a built-in tag.
  */
+// makeMap生成一个map对象，返回一个函数，判断key值是否在这个map对象中，同时key值不区分大小写
 export const isBuiltInTag = makeMap('slot,component', true)
 
 /**
@@ -219,6 +220,7 @@ export function toArray (list: any, start?: number): Array<any> {
 /**
  * Mix properties into target object.
  */
+// 对象浅拷贝
 export function extend (to: Object, _from: ?Object): Object {
   for (const key in _from) {
     to[key] = _from[key]

@@ -1,23 +1,3 @@
-/*
-细流程第一步：使用策略对象合并参数选项
-
-细流程第二步：初始化工作与Vue实例对象的设计
-1、是 initLifecycle，这个函数的作用就是在实例上添加一些属性，
-2、是 initEvents，由于 vm.$options._parentListeners 的值为 undefined 所以也仅仅是在实例上添加属性， vm._updateListeners(listeners) 并不会执行，
-   由于我们只传递了 el 和 data，所以 initProps、initMethods、initComputed、initWatch 这四个方法什么都不会做，只有 initData 会执行。
-3、是 initRender，除了在实例上添加一些属性外，由于我们传递了 el 选项，所以会执行 vm.$mount(vm.$options.el)
-
-
-综上所述：
-let v = new Vue({
-    el: '#app',
-    data: {
-        a: 1,
-        b: [1, 2, 3]
-    }
-})
-初始化工作只包含两个主要内容即：initState 和 initRender
-*/
 /* @flow */
 
 import config from '../config'
@@ -32,10 +12,17 @@ import { extend, mergeOptions, formatComponentName } from '../util/index'
 
 let uid = 0
 
+/**
+ * [initMixin 在Vue的原型上增加_init方法，构造Vue实例的时候会调用这个_init方法来初始化Vue实例]
+ * @param  {[type]} Vue: Class<Component> [传入Vue实例]
+ * @return {[type]}                       [description]
+ */
 export function initMixin (Vue: Class<Component>) {
   Vue.prototype._init = function (options?: Object) {
+    // 首先缓存当前的上下文到vm变量中，方便之后调用
     const vm: Component = this
     // a uid
+    // 设置_uid属性。_uid属性是唯一的。当触发init方法，新建Vue实例时（当渲染组件时也会触发）uid都会递增
     vm._uid = uid++
 
     let startTag, endTag
@@ -47,52 +34,31 @@ export function initMixin (Vue: Class<Component>) {
     }
 
     // a flag to avoid this being observed
+    // 如果传入值的_isVue为ture时(即传入的值是Vue实例本身)不会新建observer实例，即vm实例自身被观察的标志位
     vm._isVue = true
     // merge options
+    // 当前这个Vue实例是组件，这个选项是 Vue 内部使用的
     if (options && options._isComponent) {
       // optimize internal component instantiation
       // since dynamic options merging is pretty slow, and none of the
       // internal component options needs special treatment.
+      // 优化内部组件实例化，因为动态选项合并是相当慢的，
+      // 并且内部组件选项中没有一个需要特殊处理。
       initInternalComponent(vm, options)
-    } else {
-      // ------第一步：使用策略对象合并参数选项------
-      // 第一个参数就是 Vue.options
-      // 第二个参数是我们调用Vue构造函数时的参数选项
-      // 第三个参数是 vm 也就是 this 对象
-      // vm.$options = mergeOptions(
-      //   {
-      //       components: {
-      //           KeepAlive,
-      //           Transition,
-      //           TransitionGroup
-      //       },
-      //       directives: {
-      //           model,
-      //           show
-      //       },
-      //       filters: {},
-      //       _base: Vue
-      //   },
-      //   {
-      //       el: '#app',
-      //       data: {
-      //           a: 1,
-      //           b: [1, 2, 3]
-      //       }
-      //   },
-      //   vm
-      // )
-      // ------细流程第二步：初始化工作与Vue实例对象的设计------
+    } 
+    // 当前Vue实例不是组件。而是实例化Vue对象时，调用mergeOptions方法
+    else {
+      // 第一步：使用策略对象合并参数选项
       vm.$options = mergeOptions(
-        resolveConstructorOptions(vm.constructor),
-        options || {},
-        vm
+        // vm.constructor为Vue实例的constructor，指向Vue构造函数
+        resolveConstructorOptions(vm.constructor), // 返回Vue的options参数Vue.options (父级options是否改变、本身options是否改变)
+        options || {}, // 实例化时传入的options
+        vm // 当前Vue实例
       )
     }
     /* istanbul ignore else */
     if (process.env.NODE_ENV !== 'production') {
       initProxy(vm)
-      // ------[在生产环境下会为实例添加两个属性，并且属性值都为实例本身vm._renderProxy = vm   vm._self = vm]------
     } else {
       vm._renderProxy = vm
     }
@@ -100,11 +66,9 @@ export function initMixin (Vue: Class<Component>) {
     vm._self = vm
     initLifecycle(vm)
     initEvents(vm)
-    // 一定会调用的
     initRender(vm)
     callHook(vm, 'beforeCreate')
     initInjections(vm) // resolve injections before data/props
-    // 由于我们只传递了 el 和 data，所以 initProps、initMethods、initComputed、initWatch 这四个方法什么都不会做，只有 initData 会执行
     initState(vm)
     initProvide(vm) // resolve provide after data/props
     callHook(vm, 'created')
@@ -115,14 +79,19 @@ export function initMixin (Vue: Class<Component>) {
       mark(endTag)
       measure(`vue ${vm._name} init`, startTag, endTag)
     }
-    // ------最后在 initRender 中如果有 vm.$options.el 还要调用 vm.$mount(vm.$options.el)------
-    // ------这就是为什么如果不传递 el 选项就需要手动 mount 的原因了------
+    // 有el选项，挂载元素
     if (vm.$options.el) {
       vm.$mount(vm.$options.el)
     }
   }
 }
 
+/**
+ * [initInternalComponent 优化内部组件实例化，因为动态选项合并是相当慢的，并且内部组件选项中没有一个需要特殊处理。]
+ * @param  {[type]} vm:      Component                [Vue实例函数]
+ * @param  {[type]} options: InternalComponentOptions [description]
+ * @return {[type]}                                   [description]
+ */
 function initInternalComponent (vm: Component, options: InternalComponentOptions) {
   const opts = vm.$options = Object.create(vm.constructor.options)
   // doing this because it's faster than dynamic enumeration.
@@ -140,62 +109,162 @@ function initInternalComponent (vm: Component, options: InternalComponentOptions
   }
 }
 
+/**
+ * [resolveConstructorOptions 返回Vue的options参数Vue.options (父级options是否改变、本身options是否改变) ]
+ * @param  {[type]} Ctor: Class<Component> [vm.constructor: 其为Vue实例的constructor，指向Vue构造函数]
+ * @return {[type]}                        [description]
+ */
 export function resolveConstructorOptions (Ctor: Class<Component>) {
-  // ------通过传入的 vm.constructor 我们可以知道，其实就是 Vue 构造函数本身------
-  // ------相当于 let options = Vue.options------
+  /* 相当于 let options = Vue.options  (vm.constructor = Vue)
+    Vue.options = {
+      components: {
+          KeepAlive,
+          Transition,
+          TransitionGroup
+      },
+      directives: {
+          model,
+          show
+      },
+      filters: {},
+      _base: Vue
+    }
+   */
   let options = Ctor.options
+
+  /*
+    Ctor (Vue构造函数) 是Vue.extend创建的"子类"。
+    Vue.extend方法会为Ctor (Vue构造函数) 添加一个super属性，指向其父类构造器。
+    Vue.extend = function (extendOptions: Object): Function {
+      ...
+      Sub['super'] = Super
+      ...
+    }
+    所以:
+    当Ctor (Vue构造函数) 是基础构造器的时候，resolveConstructorOptions方法返回基础构造器的options。
+    当Ctor (Vue构造函数) 是通过Vue.extend构造的子类，resolveConstructorOptions方法返回合并后的options。
+  */
   if (Ctor.super) {
-    const superOptions = resolveConstructorOptions(Ctor.super)
+    // 递归调用返回"父类"上的options，并赋值给superOptions变量
+    const superOptions = resolveConstructorOptions(Ctor.super) // Ctor.super.options
+    /*
+      然后把"自身"的options赋值给cachedSuperOptions变量 (未被Vue.mixin前的Vue.extend 的 options)
+      Sub.superOptions = Super.options -------(/core/gloabal-api/extend.js)--------
+    */
     const cachedSuperOptions = Ctor.superOptions
+
+    /*
+      比较这两个变量的值,当这两个变量值不等时，说明"父类"的options改变过了
+      例如执行了Vue.mixin方法，这时候就需要把"自身"的superOptions属性替换成最新的, 之后检查"自身"的options是否发生变化？
+      
+      举个例子来说明一下：
+      var Profile = Vue.extend({
+         template: '<p>{{firstName}} {{lastName}} aka {{alias}}</p>'
+      })
+      Vue.mixin({ data: function () {
+        return {
+          firstName: 'Walter',
+          lastName: 'White',
+          alias: 'Heisenberg'
+        }
+      }})
+      new Profile().$mount('#example')  // (其中Profile为父类，Vue是子类)
+      由于Vue.mixin改变了"父类"options。源码中superOptions和cachedSuperOptions就不相等了
+    */
     if (superOptions !== cachedSuperOptions) {
       // super option changed,
       // need to resolve new options.
+            
+      // 把"自身"的superOptions属性替换成最新的
       Ctor.superOptions = superOptions
       // check if there are any late-modified/attached options (#4976)
+      // 之后检查"自身"的options是否发生变化？
       const modifiedOptions = resolveModifiedOptions(Ctor)
       // update base extend options
+      // 如果”自身“有新添加的options，
+      // 则把新添加的options属性添加到Ctor.extendOptions属性上
       if (modifiedOptions) {
+        // 对象浅拷贝：Ctor.extendOptions拷贝modifiedOptions
         extend(Ctor.extendOptions, modifiedOptions)
       }
+      // 调用mergeOptions方法合并  "父类"构造器上的options  和"自身"上的extendOptions
+      // 最后返回合并后的options
       options = Ctor.options = mergeOptions(superOptions, Ctor.extendOptions)
       if (options.name) {
         options.components[options.name] = Ctor
       }
     }
   }
-  // ------直接返回了 Vue.options------
+  // 返回Vue.options
   return options
 }
-
+/**
+ * [resolveModifiedOptions 检查"自身"的options是否发生变化 (返回Ctor.options中属于Ctor.extendOptions，或者不属于Ctor.sealedOptions的选项)]
+ * @param  {[type]} Ctor: Class<Component> [vm.constructor: 其为Vue实例的constructor，指向Vue构造函数]
+ * @return {[type]}                        [返回latest中属于extended的选项，或latest中不属于sealed中的选项]
+ */
 function resolveModifiedOptions (Ctor: Class<Component>): ?Object {
+  // 定义modified变量
   let modified
+  // 自身的options
   const latest = Ctor.options
+  // 构造"自身"时传入的options (Vue.extend中的options)
   const extended = Ctor.extendOptions
+  // 执行Vue.extend时封装的"自身"options，这个属性就是方便检查"自身"的options有没有变化 (Vue.minin中的options)
   const sealed = Ctor.sealedOptions
+  /*
+    遍历当前构造器上的options属性，如果在"自身"封装的options里没有，则证明是新添加的。
+    执行if内的语句。调用dedupe方法，最终返回modified变量(即"自身新添加的options")
+  */
   for (const key in latest) {
+    // latest的key值与sealed的key值不等
     if (latest[key] !== sealed[key]) {
       if (!modified) modified = {}
+      // 返回latest中属于extended的选项，或latest中不属于sealed中的选项
       modified[key] = dedupe(latest[key], extended[key], sealed[key])
     }
   }
   return modified
 }
-
+/**
+ * [dedupe 返回latest中属于extended的选项，或latest中不属于sealed中的选项]
+ * @param  {[type]} latest   [Ctor.options[key]]
+ * @param  {[type]} extended [Ctor.extendOptions[key]]
+ * @param  {[type]} sealed   [Ctor.sealedOptions]
+ * @return {[type]}          [modified[key]]
+ */
 function dedupe (latest, extended, sealed) {
   // compare latest and sealed to ensure lifecycle hooks won't be duplicated
   // between merges
+  /*
+    lateset表示的是"自身"新增的options;
+    extended表示的是当前构造器上新增的extended options;
+    sealed表示的是当前构造器上新增的封装options。
+  */
+  // latest是数组
   if (Array.isArray(latest)) {
     const res = []
+    // sealed不是数组改为数组
     sealed = Array.isArray(sealed) ? sealed : [sealed]
+    // extended不是数组改为数组
     extended = Array.isArray(extended) ? extended : [extended]
+    // 遍历latest
     for (let i = 0; i < latest.length; i++) {
       // push original options and not sealed options to exclude duplicated options
+      /*
+        如果latest是数组，一般这个新增的options就是生命周期钩子函数，则遍历该数组，
+        如果该数组的某项在extended数组中有或者在sealed数组中没有，则推送到返回数组中从而实现去重。
+        这个去重逻辑目前自己还不是特别明白，之后如果明白了会在这里更新，
+      */
+      // extended中含有latest[i] 或者 sealed中不含有latest[i]
       if (extended.indexOf(latest[i]) >= 0 || sealed.indexOf(latest[i]) < 0) {
         res.push(latest[i])
       }
     }
+    // 返回latest中属于extended的选项，或者latest中不属于sealed中的选项
     return res
   } else {
+    // 非数组直接返回第一个参数
     return latest
   }
 }
