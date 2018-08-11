@@ -18,6 +18,7 @@ export const isIOS = UA && /iphone|ipad|ipod|ios/.test(UA)
 export const isChrome = UA && /chrome\/\d+/.test(UA) && !isEdge
 
 // Firefox has a "watch" function on Object.prototype...
+// 火狐浏览器在对象原型中有一个watch函数
 export const nativeWatch = ({}).watch
 
 export let supportsPassive = false
