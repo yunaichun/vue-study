@@ -5,6 +5,7 @@ import { warn, makeMap } from '../util/index'
 
 let initProxy
 
+// 开发环境
 if (process.env.NODE_ENV !== 'production') {
   // 判断某个key值是否在参数对象中(是一个函数)
   const allowedGlobals = makeMap(
@@ -24,11 +25,13 @@ if (process.env.NODE_ENV !== 'production') {
       target
     )
   }
-  // 该处是对es6特性Proxy的检测， 其检测手段是确认Proxy是原生实现并未被用户代码所覆盖
+  // 该处是对es6特性Proxy的检测， 
+  // 其检测手段是确认Proxy是原生实现并未被用户代码所覆盖
   const hasProxy =
     typeof Proxy !== 'undefined' &&
     Proxy.toString().match(/native code/)
-  // 对config.keyCodes设置一个代理，在set赋值的时候先从isBuiltInModifier里检查，不存在再赋值
+  // 对config.keyCodes设置一个代理，
+  // 在set赋值的时候先从isBuiltInModifier里检查，不存在再赋值
   if (hasProxy) {
     const isBuiltInModifier = makeMap('stop,prevent,self,ctrl,shift,alt,meta,exact')
     config.keyCodes = new Proxy(config.keyCodes, {

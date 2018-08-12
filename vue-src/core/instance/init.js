@@ -22,7 +22,8 @@ export function initMixin (Vue: Class<Component>) {
     // 首先缓存当前的上下文到vm变量中，方便之后调用
     const vm: Component = this
     // a uid
-    // 设置_uid属性。_uid属性是唯一的。当触发init方法，新建Vue实例时（当渲染组件时也会触发）uid都会递增
+    // 设置_uid属性。_uid属性是唯一的。
+    // 当触发init方法，新建Vue实例时（当渲染组件时也会触发）uid都会递增
     vm._uid = uid++
 
     let startTag, endTag
@@ -34,8 +35,10 @@ export function initMixin (Vue: Class<Component>) {
     }
 
     // a flag to avoid this being observed
-    // 如果传入值的_isVue为ture时(即传入的值是Vue实例本身)不会新建observer实例，即vm实例自身被观察的标志位
+    // 如果传入值的_isVue为ture时(即传入的值是Vue实例本身)不会新建observer实例，
+    // 即vm实例自身被观察的标志位
     vm._isVue = true
+
     // merge options
     // 当前这个Vue实例是组件，这个选项是 Vue 内部使用的
     if (options && options._isComponent) {
@@ -48,7 +51,7 @@ export function initMixin (Vue: Class<Component>) {
     } 
     // 当前Vue实例不是组件。而是实例化Vue对象时，调用mergeOptions方法
     else {
-      // 第一步：使用策略对象合并参数选项
+      // 使用策略对象合并参数选项
       vm.$options = mergeOptions(
         // vm.constructor为Vue实例的constructor，指向Vue构造函数
         resolveConstructorOptions(vm.constructor), // 返回Vue的options参数Vue.options (父级options是否改变、本身options是否改变)
@@ -56,12 +59,19 @@ export function initMixin (Vue: Class<Component>) {
         vm // 当前Vue实例
       )
     }
+
     /* istanbul ignore else */
+    // 当前环境是开发环境，则调用initProxy方法
     if (process.env.NODE_ENV !== 'production') {
+      // proxy是一个强大的特性，为我们提供了很多"元编程"能力。
+      // 只不过目前规范还没有很完善，使用的时候要稍加注意
       initProxy(vm)
-    } else {
+    }
+    // 如果不是开发环境，则vue实例的_renderProxy属性指向vue实例本身。 
+    else {
       vm._renderProxy = vm
     }
+    
     // expose real self
     vm._self = vm
     initLifecycle(vm)
