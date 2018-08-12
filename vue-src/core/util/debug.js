@@ -7,12 +7,16 @@ export let warn = noop
 export let tip = noop
 // 任意值
 export let generateComponentTrace = (noop: any) // work around flow check
+// 格式化组件名称
 export let formatComponentName = (noop: any)
 
 if (process.env.NODE_ENV !== 'production') {
   // 存在console
   const hasConsole = typeof console !== 'undefined'
+  // classify('aa-b_cafafsa')   ->   "AaBCafafsa"
   const classifyRE = /(?:^|[-_])(\w)/g
+  // 开头第一个字母、或者-、_后的字母改为大写
+  // 再去除-、_划线符
   const classify = str => str
     .replace(classifyRE, c => c.toUpperCase())
     .replace(/[-_]/g, '')
@@ -39,6 +43,7 @@ if (process.env.NODE_ENV !== 'production') {
     }
   }
 
+  // 格式化组件名称
   formatComponentName = (vm, includeFile) => {
     if (vm.$root === vm) {
       return '<Root>'
@@ -50,6 +55,7 @@ if (process.env.NODE_ENV !== 'production') {
         : vm || {}
     let name = options.name || options._componentTag
     const file = options.__file
+    // name不存在，file存在
     if (!name && file) {
       const match = file.match(/([^/\\]+)\.vue$/)
       name = match && match[1]

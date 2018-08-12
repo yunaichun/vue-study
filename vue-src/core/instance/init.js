@@ -76,6 +76,7 @@ export function initMixin (Vue: Class<Component>) {
     vm._self = vm
     // initLifeCycle方法用来初始化一些生命周期相关的属性，以及为parent,child等属性赋值
     initLifecycle(vm)
+    // initEvents方法用来初始化事件
     initEvents(vm)
     initRender(vm)
     callHook(vm, 'beforeCreate')

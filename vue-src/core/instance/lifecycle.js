@@ -365,6 +365,30 @@ export function callHook (vm: Component, hook: string) {
       }
     }
   }
+  /*
+    当前实例的钩子函数如果是通过父组件的:hook方式来指定的，
+    那么它在执行钩子函数的回调方法时就是直接触发vm.$emit来执行。
+    （这种方式类似于dom中的addEventListener监听事件和dispatchEvent触发事件）
+
+    如果不是上面这种方法指定的钩子函数，就需要执行callhook源码上半部分的代码逻辑。
+    找到vm实例上的钩子函数，然后执行绑定在它上面的回调。
+  */
+ 
+  /*
+    如果是下列形式绑定的钩子，则_hasHookEvent属性为true。
+      <child
+        @hook:created="hookFromParent"
+      >
+    而像下面这种形式，它也存在钩子函数，但是它的_hasHookEvent就是false。
+      const childComponent = Vue.component('child', {
+        ...
+        created () {
+          console.log('child created')
+        }
+      })
+   */
+  // _hasHookEvent不是表示是否存在钩子，
+  // 它表示的是父组件有没有直接绑定钩子函数在当前组件上
   if (vm._hasHookEvent) {
     vm.$emit('hook:' + hook)
   }
