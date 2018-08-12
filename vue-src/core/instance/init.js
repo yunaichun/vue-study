@@ -80,8 +80,10 @@ export function initMixin (Vue: Class<Component>) {
     initEvents(vm)
     initRender(vm)
     callHook(vm, 'beforeCreate')
+    // initInjections方法用来初始化inject
     initInjections(vm) // resolve injections before data/props
     initState(vm)
+    // initProvide方法用来初始化provide
     initProvide(vm) // resolve provide after data/props
     callHook(vm, 'created')
 
