@@ -15,10 +15,13 @@ import VNode, { cloneVNodes, createEmptyVNode } from '../vdom/vnode'
 
 import { isUpdatingChildComponent } from './lifecycle'
 
+// 初始化render
 export function initRender (vm: Component) {
   vm._vnode = null // the root of the child tree
   const options = vm.$options
+  // 父树中的占位符节点
   const parentVnode = vm.$vnode = options._parentVnode // the placeholder node in parent tree
+  // 当前节点的编译作用域
   const renderContext = parentVnode && parentVnode.context
   vm.$slots = resolveSlots(options._renderChildren, renderContext)
   vm.$scopedSlots = emptyObject
