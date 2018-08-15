@@ -31,7 +31,7 @@ Vue.prototype.$mount = function (
   el?: string | Element,
   hydrating?: boolean
 ): Component {
-  // 根据el获取相应的DOM元素 (options.el先转化了)
+  // 根据el获取相应的DOM元素：可以传入元素属性名，也可以直接传入DOM节点
   el = el && query(el)
 
   /* istanbul ignore if */
@@ -45,17 +45,18 @@ Vue.prototype.$mount = function (
 
   const options = this.$options
   // resolve template/el and convert to render function
-  // 没有 render 选项：编译template生成render
+  // options中没有render 选项：编译template生成render
   if (!options.render) {
     let template = options.template
-    // options中有template
+    // options中有template选项：通过template获取DOM元素节点
     if (template) {
+      // template是字符串：template:"#template"
       if (typeof template === 'string') {
-        // 第一个字符是# (template:"#template")
         if (template.charAt(0) === '#') {
           // 返回此template的innerHTML
           template = idToTemplate(template)
           /* istanbul ignore if */
+          // 开发环境报错：不存在节点
           if (process.env.NODE_ENV !== 'production' && !template) {
             warn(
               `Template element not found or is empty: ${options.template}`,
@@ -63,23 +64,26 @@ Vue.prototype.$mount = function (
             )
           }
         }
-      } else if (template.nodeType) {
-        // 当template为DOM节点的时候 (template: `<h1 style="color:red">第一种写法</h1>`)
+      }
+      // 当template为DOM节点：template: `<h1 style="color:red">第一种写法</h1>`
+      else if (template.nodeType) {
         template = template.innerHTML
-      } else {
-        // template存在但不合法
+      }
+      // template存在但不合法
+      else {
         if (process.env.NODE_ENV !== 'production') {
           warn('invalid template option:' + template, this)
         }
         return this
       }
     } 
-    // options中没有template（肯定有el的）
+    // options中没有template选项：通过el选项获取DOM元素节点
     else if (el) {
       // 获取el元素起始位置到终止位置的全部内容 (包含本身)
       template = getOuterHTML(el)
     }
-    // render不存在的时候才会编译template，否则优先使用render
+
+    // options中有template选项或有el选项时：DOM元素节点
     if (template) {
       /* istanbul ignore if */
       if (process.env.NODE_ENV !== 'production' && config.performance && mark) {

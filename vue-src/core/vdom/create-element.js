@@ -23,13 +23,36 @@ const ALWAYS_NORMALIZE = 2
 
 // wrapper function for providing a more flexible interface
 // without getting yelled at by flow
-// render函数：创建元素节点
+/* 
+  vm._c = (a, b, c, d) => createElement(vm, a, b, c, d, false)
+  vm.$createElement = (a, b, c, d) => createElement(vm, a, b, c, d, true)
+*/
+/*
+  vm._c: 是被模板template编译成的 render 函数使用；
+
+  vm.$createElement: 是用户手写 render 方法使用，我们在平时的开发工作中手写 render 方法的场景比较少，
+  如下：
+     <div id="app">
+        {{ message }}
+      </div>
+      相当于我们编写如下 render 函数：
+      render: function (createElement) {
+        return createElement('div', {
+           attrs: {
+              id: 'app'
+            },
+        }, this.message)
+      }
+
+  这俩个方法支持的参数相同，并且内部都调用了 createElement 方法。
+ */
+// render函数的第二个参数：作用是生成一个虚拟DOM
 export function createElement (
-  context: Component,
-  tag: any,
-  data: any,
-  children: any,
-  normalizationType: any,
+  context: Component, // context 表示 VNode 的上下文环境
+  tag: any, // tag 表示标签
+  data: any, // data 表示 VNode 的数据，它是一个 VNodeData 类型，可以在 flow/vnode.js 中找到它的定义
+  children: any, // children 表示当前 VNode 的子节点，它是任意类型的，它接下来需要被规范为标准的 VNode 数组
+  normalizationType: any, // normalizationType 表示子节点规范的类型，类型不同规范的方法也就不一样，它主要是参考 render 函数是编译生成的还是用户手写的(true)
   alwaysNormalize: boolean
 ): VNode {
   if (Array.isArray(data) || isPrimitive(data)) {
@@ -44,11 +67,11 @@ export function createElement (
 }
 
 export function _createElement (
-  context: Component,
-  tag?: string | Class<Component> | Function | Object,
-  data?: VNodeData,
-  children?: any,
-  normalizationType?: number
+  context: Component, // context 表示 VNode 的上下文环境
+  tag?: string | Class<Component> | Function | Object, // tag 表示标签
+  data?: VNodeData, // data 表示 VNode 的数据，它是一个 VNodeData 类型，可以在 flow/vnode.js 中找到它的定义
+  children?: any, // children 表示当前 VNode 的子节点，它是任意类型的，它接下来需要被规范为标准的 VNode 数组
+  normalizationType?: number // normalizationType 表示子节点规范的类型，类型不同规范的方法也就不一样，它主要是参考 render 函数是编译生成的还是用户手写的(true)
 ): VNode {
   if (isDef(data) && isDef((data: any).__ob__)) {
     process.env.NODE_ENV !== 'production' && warn(

@@ -174,19 +174,33 @@ export function mountComponent (
 ): Component {
   // 在Vue实例对象上添加 $el 属性，指向挂载点元素
   vm.$el = el
-  // render 不存在的情况去编译template，生成render
+
+  // render 不存在的情况
   if (!vm.$options.render) {
+    // options中没有render，也没有编译template编译成的render
     vm.$options.render = createEmptyVNode
-    if (process.env.NODE_ENV !== 'production') { // 开发环境
+    if (process.env.NODE_ENV !== 'production') {
       /* istanbul ignore if */
-      if ((vm.$options.template && vm.$options.template.charAt(0) !== '#') || vm.$options.el || el) { // template直接写模板、或存在el选项
+      /*
+        1、options中存在template的DOM节点，但是没有编译出render
+        2、options中存在el，但是没有编译出render
+        结论：不是编译版本的vue
+      */
+      if ((vm.$options.template && vm.$options.template.charAt(0) !== '#') || vm.$options.el || el) {
         warn(
           'You are using the runtime-only build of Vue where the template ' +
           'compiler is not available. Either pre-compile the templates into ' +
           'render functions, or use the compiler-included build.',
           vm
         )
-      } else { // 不存在template且没有el选项
+      }
+      /*
+        1、options中template是字符串：template:"#template"，但是没有编译出render
+        2、options中没有el，但是没有编译出render
+        等等意外情况
+        结论：不是编译版本的vuetemplate or render function not defined.
+      */
+      else {
         warn(
           'Failed to mount component: template or render function not defined.',
           vm
@@ -194,12 +208,14 @@ export function mountComponent (
       }
     }
   }
+
   // 触发 beforeMount 钩子
   callHook(vm, 'beforeMount')
 
   let updateComponent
   /* istanbul ignore if */
-  if (process.env.NODE_ENV !== 'production' && config.performance && mark) { // 开发环境
+   // 开发环境：添加性能调试
+  if (process.env.NODE_ENV !== 'production' && config.performance && mark) {
     updateComponent = () => {
       const name = vm._name
       const id = vm._uid
@@ -207,30 +223,30 @@ export function mountComponent (
       const endTag = `vue-perf-end:${id}`
 
       mark(startTag)
-      // render 函数的作用域是Vue实例本身即：this(或vm)。那么当我们执行 render 函数时，
-      // 其中的变量如：a，就相当于：this.a，这是在求值
-      // vm_render 方法最终返回一个 vnode 对象，即虚拟DOM，然后作为 vm_update 的第一个参数传递了过去
+      // vm_render 方法最终返回一个 vnode 对象，即虚拟DOM，
+      // 然后作为 vm_update 的第一个参数传递了过去
       const vnode = vm._render()
       mark(endTag)
       measure(`vue ${name} render`, startTag, endTag)
 
       mark(startTag)
-      //  // 当 vm._render 执行的时候，所依赖的变量就会被求值，并被收集为依赖。按照Vue中 watcher.js 的逻辑，
-      //  当依赖的变量有变化时不仅仅回调函数被执行，实际上还要重新求值，即还要执行一遍：() => { vm._update(vm._render(), hydrating) }
+      // 当 vm._render 执行的时候，所依赖的变量就会被求值，并被收集为依赖。
+      // 按照Vue中 watcher.js 的逻辑，当依赖的变量有变化时不仅仅回调函数被执行，
+      // 实际上还要重新求值，即还要执行一遍：() => { vm._update(vm._render(), hydrating) }
       vm._update(vnode, hydrating)
       mark(endTag)
       measure(`vue ${name} patch`, startTag, endTag)
     }
-  } else { // 生产环境
+  } else {
     updateComponent = () => {
-      vm._update(vm._render(), hydrating) // 更新初始渲染的节点
+      // vm_render 方法最终返回一个 vnode 对象，即虚拟DOM，然后作为 vm_update 的第一个参数传递了过去
+      vm._update(vm._render(), hydrating)
     }
   }
 
-  // Watcher函数第一个参数是 表达式或者函数，第二个参数是回调函数，第三个参数是可选的选项
-  // 但是这里Watcher函数第一个参数是vm，这是什么鬼，看看$watch的定义 (core/instance/state.js)
-  // 忽略第一个参数 vm，也就说，Watcher 内部应该对第二个参数求值，也就是运行这个函数：() => { vm._update(vm._render(), hydrating) }
-  // 所以 vm._render() 函数被第一个执行，该函数在 ( src/core/instance/render.js ) 中
+  // Watcher函数第一个参数是 vm, 第二个参数表达式或者函数, 第三个参数是回调函数，第四个参数是可选配置项
+  // Watcher 内部应该对第二个参数求值，也就是运行这个函数：updateComponent() => vm._update(vm._render(), hydrating)
+  // vm._render() 函数被第一个执行( src/core/instance/render.js )
   vm._watcher = new Watcher(vm, updateComponent, noop)
   hydrating = false
 

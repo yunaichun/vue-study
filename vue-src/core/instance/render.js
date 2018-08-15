@@ -25,11 +25,34 @@ export function initRender (vm: Component) {
   const renderContext = parentVnode && parentVnode.context
   vm.$slots = resolveSlots(options._renderChildren, renderContext)
   vm.$scopedSlots = emptyObject
+
+  /**
+    vm._c: 是被模板template编译成的 render 函数使用；
+
+    vm.$createElement: 是用户手写 render 方法使用，我们在平时的开发工作中手写 render 方法的场景比较少，
+    如下：
+       <div id="app">
+          {{ message }}
+        </div>
+        相当于我们编写如下 render 函数：
+        render: function (createElement) {
+          return createElement('div', {
+             attrs: {
+                id: 'app'
+              },
+          }, this.message)
+        }
+
+    这俩个方法支持的参数相同，并且内部都调用了 createElement 方法。
+  */
   // bind the createElement fn to this instance
   // so that we get proper render context inside it.
   // args order: tag, data, children, normalizationType, alwaysNormalize
   // internal version is used by render functions compiled from templates
-  // render函数：_c相当于Vue中的createElement创建元素节点 (其余定义在core/instance/render-helpers/index.js)
+  /*
+    render函数：_c相当于Vue中的createElement创建元素节点 
+    (其余定义在core/instance/render-helpers/index.js)
+  */
   vm._c = (a, b, c, d) => createElement(vm, a, b, c, d, false)
   // normalization is always applied for the public version, used in
   // user-written render functions.
@@ -61,10 +84,17 @@ export function renderMixin (Vue: Class<Component>) {
     return nextTick(fn, this)
   }
 
+  // $mount(platforms/web/runtime/index.js) -> mountComponent(core/instance/lifecycle.js) -> 
+  // updateComponent -> vm._update(vm._render(), hydrating)
+  /** 
+   * 将实例渲染成一个虚拟 Node：这段代码最关键的是 render 方法的调用
+   */
   Vue.prototype._render = function (): VNode {
     const vm: Component = this
-    // 解构出 $options 中的 render 函数
-    // vm.$options.render 方法是在 web-runtime-with-compiler.js 文件中通过 compileToFunctions 方法将 template 或 el 编译而来的
+    /* 解构出 $options 中的 render 函数：
+      1、用户手写render
+      2、模板template编译成的 render (web-runtime-with-compiler.js文件通过compileToFunctions方法编译)
+    */
     const { render, _parentVnode } = vm.$options
 
     if (vm._isMounted) {
@@ -86,9 +116,25 @@ export function renderMixin (Vue: Class<Component>) {
     // render self
     let vnode
     try {
-      // 运行 render 函数。
-      // 指定了 render 函数的作用域环境为 vm._renderProxy, 他是在 Vue.prototype._init 方法中被添加的，即：vm._renderProxy = vm，其实就是Vue实例对象本身
-      // 然后传递了一个参数：vm.$createElement
+      /**
+        vm._c: 是被模板template编译成的 render 函数使用；
+
+        vm.$createElement: 是用户手写 render 方法使用，我们在平时的开发工作中手写 render 方法的场景比较少，
+        如下：
+           <div id="app">
+              {{ message }}
+            </div>
+            相当于我们编写如下 render 函数：
+            render: function (createElement) {
+              return createElement('div', {
+                 attrs: {
+                    id: 'app'
+                  },
+              }, this.message)
+            }
+
+        这俩个方法支持的参数相同，并且内部都调用了 createElement 方法。
+       */
       vnode = render.call(vm._renderProxy, vm.$createElement)
     } catch (e) {
       handleError(e, vm, `render`)
