@@ -15,9 +15,14 @@ import { isFalse, isTrue, isDef, isUndef, isPrimitive } from 'shared/util'
 // normalization is needed - if any child is an Array, we flatten the whole
 // thing with Array.prototype.concat. It is guaranteed to be only 1-level deep
 // because functional components already normalize their own children.
+/*
+  数组嵌套数组最多是一层：变为一维数组
+ */
 export function simpleNormalizeChildren (children: any) {
   for (let i = 0; i < children.length; i++) {
+    // 函数式组件
     if (Array.isArray(children[i])) {
+      // [1,1,1], [2,2,2], 3] -> [1, 1, 1, 2, 2, 2, 3]
       return Array.prototype.concat.apply([], children)
     }
   }
@@ -28,42 +33,64 @@ export function simpleNormalizeChildren (children: any) {
 // e.g. <template>, <slot>, v-for, or when the children is provided by user
 // with hand-written render functions / JSX. In such cases a full normalization
 // is needed to cater to all possible types of children values.
+/*
+  数组嵌套数组不止是一层：递归变为一维数组
+ */
 export function normalizeChildren (children: any): ?Array<VNode> {
-  return isPrimitive(children)
-    ? [createTextVNode(children)]
+  return isPrimitive(children) 
+    ? [createTextVNode(children)] // children是基础类型：直接返回一维数组，值时一个文本vNode节点
     : Array.isArray(children)
-      ? normalizeArrayChildren(children)
+      ? normalizeArrayChildren(children) // children是数组：调用normalizeArrayChildren
       : undefined
 }
 
+// 是文本vNode节点
 function isTextNode (node): boolean {
   return isDef(node) && isDef(node.text) && isFalse(node.isComment)
 }
 
+// 数组嵌套数组不止是一层：递归变为一维数组
 function normalizeArrayChildren (children: any, nestedIndex?: string): Array<VNode> {
   const res = []
   let i, c, lastIndex, last
+  // 遍历children
   for (i = 0; i < children.length; i++) {
+    // 当前节点
     c = children[i]
+    // c是undefined、null、boolean类型的跳出当前循环
     if (isUndef(c) || typeof c === 'boolean') continue
+
+    // 获取res最后一个节点
     lastIndex = res.length - 1
     last = res[lastIndex]
+    
     //  nested
+    //  当前节点是数组类型，递归调用
     if (Array.isArray(c) && c.length > 0) {
+      // 递归调用normalizeArrayChildren将结果放在c上
       c = normalizeArrayChildren(c, `${nestedIndex || ''}_${i}`)
       // merge adjacent text nodes
+      // 优化：最后处理的节点和第一个节点都是文本节点的话，将其合并
       if (isTextNode(c[0]) && isTextNode(last)) {
+        // 最后一个文本节点拼接第一个文本节点
         res[lastIndex] = createTextVNode(last.text + (c[0]: any).text)
+        // 将第一个节点取出来
         c.shift()
       }
+      // 最终将c的值push到要返回的res中
       res.push.apply(res, c)
-    } else if (isPrimitive(c)) {
+    } 
+    //  当前节点是基础类型
+    else if (isPrimitive(c)) {
+      // 是文本节点的话合并
       if (isTextNode(last)) {
         // merge adjacent text nodes
         // this is necessary for SSR hydration because text nodes are
         // essentially merged when rendered to HTML strings
         res[lastIndex] = createTextVNode(last.text + c)
-      } else if (c !== '') {
+      } 
+      // 直接push
+      else if (c !== '') {
         // convert primitive to vnode
         res.push(createTextVNode(c))
       }

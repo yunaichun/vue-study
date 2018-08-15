@@ -2,14 +2,17 @@
 
 // these helpers produces better vm code in JS engines due to their
 // explicitness and function inlining
+// 是undefined或者null类型
 export function isUndef (v: any): boolean %checks {
   return v === undefined || v === null
 }
 
+// 不是undefined也不是null类型
 export function isDef (v: any): boolean %checks {
   return v !== undefined && v !== null
 }
 
+// 传入的值时true的话
 export function isTrue (v: any): boolean %checks {
   return v === true
 }
@@ -21,6 +24,7 @@ export function isFalse (v: any): boolean %checks {
 /**
  * Check if value is primitive
  */
+// 指的是基本类型
 export function isPrimitive (value: any): boolean %checks {
   return (
     typeof value === 'string' ||
