@@ -55,6 +55,7 @@ extend(Vue.options.directives, platformDirectives)
 extend(Vue.options.components, platformComponents)
 
 // install platform patch function
+// 将虚拟DOM初始渲染到页面、或者更新视图函数
 Vue.prototype.__patch__ = inBrowser ? patch : noop
 
 // public mount method
