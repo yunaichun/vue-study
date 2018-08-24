@@ -65,6 +65,11 @@ function remove (event, fn) {
   target.$off(event, fn)
 }
 
+/**
+ * [eventsMixin  在 Vue.prototype 上添加了四个方法：$on、$once、$off、$emit]
+ * @param  {[type]} Vue: Class<Component> [传入Vue构造函数]
+ * @return {[type]}                       [description]
+ */
 export function eventsMixin (Vue: Class<Component>) {
   const hookRE = /^hook:/
   // $on方法用来在vm实例上监听一个自定义事件，该事件可用$emit触发
@@ -82,6 +87,12 @@ export function eventsMixin (Vue: Class<Component>) {
       // _events是表示直接绑定在组件上的事件，
       // 如果是通过$on新添加的事件（也相当于直接绑定在组件上的事件）,
       // 我们也要把事件和回调方法传入到_events对象中。
+      /*
+        _events: {
+           event: [fn]
+        }
+       */
+      }
       (vm._events[event] || (vm._events[event] = [])).push(fn)
       // optimize hook:event cost by using a boolean flag marked at registration
       // instead of a hash lookup
@@ -111,13 +122,15 @@ export function eventsMixin (Vue: Class<Component>) {
   // $once监听一个只能触发一次的事件，在触发以后会自动移除该事件
   Vue.prototype.$once = function (event: string, fn: Function): Component {
     const vm: Component = this
+    // event事件的真实回调是fn，这里又做了一层封装，间接回调是on函数
     function on () {
-      // 先调用$off方法移除监听
+      // 先调用$off方法移除event事件的间接回调on函数
       vm.$off(event, on)
-      // 然后再执行回调函数,这样就实现了只触发一次的功能
+      // 再执行event事件的真实回调fn函数，这样就实现了只触发一次的功能
       fn.apply(vm, arguments)
     }
     on.fn = fn
+    // 监听event事件，回调是on函数
     vm.$on(event, on)
     return vm
   }
@@ -126,7 +139,7 @@ export function eventsMixin (Vue: Class<Component>) {
   Vue.prototype.$off = function (event?: string | Array<string>, fn?: Function): Component {
     const vm: Component = this
     // all
-    // 如果不传参数则注销所有事件
+    // 如果没有提供参数，则移除所有的事件监听器；
     if (!arguments.length) {
       vm._events = Object.create(null)
       return vm
@@ -140,17 +153,18 @@ export function eventsMixin (Vue: Class<Component>) {
       return vm
     }
     // specific event
+    // event不是数组，是指定的事件；cbs为指定event事件对应的所有回调函数
     const cbs = vm._events[event]
-    // 本身不存在该事件则直接返回
+    // 如果此event本身没有回调，直接返回
     if (!cbs) {
       return vm
     }
-    // 果只传了event参数则注销该event方法下的所有方法
+    // 如果定event事件存在回调，则将回调全部清空
     if (arguments.length === 1) {
       vm._events[event] = null
       return vm
     }
-    // 遍历寻找对应方法并删除
+    // 如果同时提供了事件与回调，则只移除这个回调的监听器。
     if (fn) {
       // specific handler
       let cb
@@ -183,14 +197,17 @@ export function eventsMixin (Vue: Class<Component>) {
         )
       }
     }
+    // 获取_events对象存储的key为event的事件数组
     let cbs = vm._events[event]
     if (cbs) {
       // 将类数组的对象转换成数组
       cbs = cbs.length > 1 ? toArray(cbs) : cbs
+      // 获取$emit的参数
       const args = toArray(arguments, 1)
       // 遍历执行事件
       for (let i = 0, l = cbs.length; i < l; i++) {
         try {
+          // 调用事件方法，传递参数
           cbs[i].apply(vm, args)
         } catch (e) {
           handleError(e, vm, `event handler for "${event}"`)

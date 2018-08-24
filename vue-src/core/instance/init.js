@@ -13,8 +13,8 @@ import { extend, mergeOptions, formatComponentName } from '../util/index'
 let uid = 0
 
 /**
- * [initMixin 在Vue的原型上增加_init方法，构造Vue实例的时候会调用这个_init方法来初始化Vue实例]
- * @param  {[type]} Vue: Class<Component> [传入Vue实例]
+ * [initMixin 在Vue.prototype上定义_init方法，构造Vue实例的时候会调用这个_init方法来初始化Vue实例]
+ * @param  {[type]} Vue: Class<Component> [传入Vue构造函数]
  * @return {[type]}                       [description]
  */
 export function initMixin (Vue: Class<Component>) {

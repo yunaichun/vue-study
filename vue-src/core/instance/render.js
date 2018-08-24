@@ -76,10 +76,17 @@ export function initRender (vm: Component) {
   }
 }
 
+/**
+ * [renderMixin  在Vue.prototype上定义一系列方法：如$nextTick 和 _render等]
+ * @param  {[type]} Vue: Class<Component> [传入Vue构造函数]
+ * @return {[type]}                       [description]
+ */
 export function renderMixin (Vue: Class<Component>) {
   // install runtime convenience helpers
+  // 在 Vue.prototype 上添加一系列方法
   installRenderHelpers(Vue.prototype)
 
+  // 在 Vue.prototype 上添加$nextTick方法
   Vue.prototype.$nextTick = function (fn: Function) {
     return nextTick(fn, this)
   }

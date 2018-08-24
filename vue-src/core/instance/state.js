@@ -438,8 +438,8 @@ function createWatcher (
 
 
 /**
- * [stateMixin description]
- * @param  {[type]} Vue: Class<Component> [description]
+ * [stateMixin  在Vue.prototype上定义三个方法：$set、$delete 以及 $watch；$data和$props数据代理_data和_props]
+ * @param  {[type]} Vue: Class<Component> [传入Vue构造函数]
  * @return {[type]}                       [description]
  */
 export function stateMixin (Vue: Class<Component>) {
@@ -450,6 +450,8 @@ export function stateMixin (Vue: Class<Component>) {
   dataDef.get = function () { return this._data }
   const propsDef = {}
   propsDef.get = function () { return this._props }
+  // 开发环境为 $data 和 $props 这两个属性设置一下 set，
+  // 实际上就是提示你一下：别他娘的想修改我，老子无敌。
   if (process.env.NODE_ENV !== 'production') {
     dataDef.set = function (newData: Object) {
       warn(
@@ -462,9 +464,9 @@ export function stateMixin (Vue: Class<Component>) {
       warn(`$props is readonly.`, this)
     }
   }
-  // 数据绑定: 将$data加在Vue.prototype上
+  // 数据绑定: 将$data加在Vue.prototype上；$data 属性实际上代理的是 _data 这个实例属性
   Object.defineProperty(Vue.prototype, '$data', dataDef)
-  // 数据绑定: 将$props加在Vue.prototype上
+  // 数据绑定: 将$props加在Vue.prototype上；$props 代理的是 _props 这个实例属性
   Object.defineProperty(Vue.prototype, '$props', propsDef)
 
   /*
