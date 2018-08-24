@@ -233,9 +233,12 @@ export function defineReactive (
  * triggers change notification if the property doesn't
  * already exist.
  */
-// 用以将data之外的对象绑定成响应式的
-// 在对象上添加一个新的属性，并且给此属性值设置为观察者
 // https://cn.vuejs.org/v2/api/#vm-set
+/*
+  向响应式对象中添加一个属性，并确保这个新属性同样是响应式的，且触发视图更新。
+  它必须用于向响应式对象上添加新属性，因为 Vue 无法探测普通的新增属性 (比如 this.myObject.newProperty = 'hi')
+  注意对象不能是 Vue 实例，或者 Vue 实例的根数据对象。
+*/
 export function set (target: Array<any> | Object, key: any, val: any): any {
   // target是数组：向target数组中插入val(索引为key)，同时返回此val
   if (Array.isArray(target) && isValidArrayIndex(key)) {
@@ -270,7 +273,7 @@ export function set (target: Array<any> | Object, key: any, val: any): any {
     target[key] = val
     return val
   }
-  // 为对象defineProperty上在变化时通知的属性
+  // 为对象defineProperty上在变化时通知的属性（this.value = value）
   defineReactive(ob.value, key, val)
   // 手动通知观察者：target增加了某属性值
   ob.dep.notify()
@@ -280,7 +283,11 @@ export function set (target: Array<any> | Object, key: any, val: any): any {
 /**
  * Delete a property and trigger change if necessary.
  */
-// 删除数组中的某一项
+/*
+删除对象的属性。如果对象是响应式的，确保删除能触发更新视图。
+这个方法主要用于避开 Vue 不能检测到属性被删除的限制，但是你应该很少会使用它。
+目标对象不能是一个 Vue 实例或 Vue 实例的根数据对象。
+*/
 export function del (target: Array<any> | Object, key: any) {
   // target是数组：向target数组中删除索引为key的值
   if (Array.isArray(target) && isValidArrayIndex(key)) {

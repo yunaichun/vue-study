@@ -30,7 +30,7 @@ if (process.env.NODE_ENV !== 'production') {
       // 传入值：msg, vm, trace
       config.warnHandler.call(null, msg, vm, trace)
     } else if (hasConsole && (!config.silent)) {
-      // 控制台打印
+      // 控制台打印：传入msg消息 + vue实例
       console.error(`[Vue warn]: ${msg}${trace}`)
     }
   }

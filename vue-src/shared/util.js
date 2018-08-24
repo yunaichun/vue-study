@@ -212,14 +212,24 @@ export function bind (fn: Function, ctx: Object): Function {
 /**
  * Convert an Array-like object to a real Array.
  */
-// 将类数组的对象转换成数组
+/**
+ * [toArray 将类数组的对象转换成数组]
+ * @param  {[type]} list:   any           [list可以为函数参数arguments、或者数组]
+ * @param  {[type]} start?: number        [类数组开始位置]
+ * @return {[type]}                       [description]
+ */
 export function toArray (list: any, start?: number): Array<any> {
+  // 开始位置
   start = start || 0
+  // 总长度
   let i = list.length - start
+  // 定义数组
   const ret: Array<any> = new Array(i)
+  // 转换成数组
   while (i--) {
     ret[i] = list[i + start]
   }
+  // 返回数组
   return ret
 }
 

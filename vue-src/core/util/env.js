@@ -73,7 +73,7 @@ export const hasSymbol =
 /**
  * Defer a task to execute it asynchronously.
  */
- /*
+ /* 返回一个函数：
     延迟一个任务使其异步执行，在下一个tick时执行，一个立即执行函数，返回一个function
     这个函数的作用是在task或者microtask中推入一个timerFunc，在当前调用栈执行完以后以此执行直到执行到timerFunc
     目的是延迟到当前调用栈执行完以后执行
@@ -119,27 +119,31 @@ export const nextTick = (function () {
       // 执行callbacks中存储的函数
       setImmediate(nextTickHandler)
     }
-  } else if (typeof MessageChannel !== 'undefined' && (
-    isNative(MessageChannel) ||
-    // PhantomJS
-    MessageChannel.toString() === '[object MessageChannelConstructor]'
-  )) {
+  } 
+  else if (typeof MessageChannel !== 'undefined' && 
+    (
+      isNative(MessageChannel) ||
+      // PhantomJS
+      MessageChannel.toString() === '[object MessageChannelConstructor]'
+    )
+  ) {
     const channel = new MessageChannel()
     const port = channel.port2
     channel.port1.onmessage = nextTickHandler
     timerFunc = () => {
       port.postMessage(1)
     }
-  } else
+  }
   /* istanbul ignore next */
-  if (typeof Promise !== 'undefined' && isNative(Promise)) {
+  else if (typeof Promise !== 'undefined' && isNative(Promise)) {
     // use microtask in non-DOM environments, e.g. Weex
     // 使用Promise
     const p = Promise.resolve()
     timerFunc = () => {
       p.then(nextTickHandler)
     }
-  } else {
+  } 
+  else {
     // fallback to setTimeout
     timerFunc = () => {
       setTimeout(nextTickHandler, 0)
@@ -149,15 +153,17 @@ export const nextTick = (function () {
   // 推送到队列中下一个tick时执行，cb 回调函数，ctx 上下文
   return function queueNextTick (cb?: Function, ctx?: Object) {
     let _resolve
-    // 将任务推送到callbacks数组中
+    // 将cb任务推送到callbacks数组中 (存放异步执行的回调)
     callbacks.push(() => {
+      // nextTick传入有函数
       if (cb) {
         try {
           cb.call(ctx)
         } catch (e) {
           handleError(e, ctx, 'nextTick')
         }
-      } else if (_resolve) {
+      }
+      else if (_resolve) {
         _resolve(ctx)
       }
     })
@@ -166,6 +172,7 @@ export const nextTick = (function () {
       // 一个标记位，标记等待状态（即函数已经被推入任务队列或者主线程，已经在等待当前栈执行完毕去执行）
       // 这样就不需要在push多个回调到callbacks时将timerFunc多次推入任务队列或者主线程
       pending = true
+      // callbacks存储在timerFunc的nextTickHandler函数中
       timerFunc()
     }
     // $flow-disable-line
