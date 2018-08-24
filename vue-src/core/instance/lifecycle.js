@@ -73,24 +73,30 @@ export function initLifecycle (vm: Component) {
  * @return {[type]}                       [description]
  */
 export function lifecycleMixin (Vue: Class<Component>) {
+  /** 
+   * 将虚拟DOM初始渲染到页面、或者更新视图函数
+   */
   Vue.prototype._update = function (vnode: VNode, hydrating?: boolean) {
     const vm: Component = this
     // 假如已经挂载，调用beforeUpdate钩子
     if (vm._isMounted) {
       callHook(vm, 'beforeUpdate')
     }
+    // 以下变量是试图改变时定义的变量
     const prevEl = vm.$el
     const prevVnode = vm._vnode
     const prevActiveInstance = activeInstance
     activeInstance = vm
     vm._vnode = vnode
+
     // Vue.prototype.__patch__ is injected in entry points
     // based on the rendering backend used.
-    // 如果还没有 prevVnode 说明是首次渲染，直接创建真实DOM
+    // 如果还没有 prevVnode 说明是首次渲染
+    // 直接创建真实DOM
     if (!prevVnode) {
       // initial render
       vm.$el = vm.__patch__(
-        vm.$el, vnode, hydrating, false /* removeOnly */,
+        vm.$el, vnode, hydrating, false /* removeOnly */, // vm.$el为真实DOM、vnode为虚拟DOM
         vm.$options._parentElm,
         vm.$options._refElm
       )
@@ -98,8 +104,8 @@ export function lifecycleMixin (Vue: Class<Component>) {
       // this prevents keeping a detached DOM tree in memory (#5851)
       vm.$options._parentElm = vm.$options._refElm = null
     } 
-    // 如果已经有了 prevVnode 说明不是首次渲染，那么就采用 patch 算法进行必要的DOM操作。
-    // 这就是Vue更新DOM的逻辑。只不过我们没有将 virtual DOM 内部的实现。
+    // 如果已经有了 prevVnode 说明不是首次渲染
+    // 那么就采用 patch 算法进行必要的DOM操作, 这就是Vue更新DOM的逻辑。
     else {
       // updates
       vm.$el = vm.__patch__(prevVnode, vnode)
