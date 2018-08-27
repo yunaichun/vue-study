@@ -148,16 +148,19 @@ export function resolveConstructorOptions (Ctor: Class<Component>) {
   let options = Ctor.options
 
   /*
-    Ctor (Vue构造函数) 是Vue.extend创建的"子类"。
-    Vue.extend方法会为Ctor (Vue构造函数) 添加一个super属性，指向其父类构造器。
-    Vue.extend = function (extendOptions: Object): Function {
-      ...
-      Sub['super'] = Super
-      ...
-    }
+    Vue.extend方法会为子类添加一个super属性，指向其父类构造器：
+      Vue.extend = function (extendOptions: Object): Function {
+        ...
+        Sub['super'] = Super
+        ...
+      }
+    如下：
+      const Sub = Vue.extend()
+      const s = new Sub()
+      s.constructor 自然就是 Sub 而非 Vue
     所以:
-    当Ctor (Vue构造函数) 是基础构造器的时候，resolveConstructorOptions方法返回基础构造器的options。
-    当Ctor (Vue构造函数) 是通过Vue.extend构造的子类，resolveConstructorOptions方法返回合并后的options。
+      当Ctor是基础构造器的时候，resolveConstructorOptions方法返回基础构造器的options。
+      当Ctor是通过Vue.extend构造的子类，resolveConstructorOptions方法返回合并后的options。
   */
   if (Ctor.super) {
     // 递归调用返回"父类"上的options，并赋值给superOptions变量

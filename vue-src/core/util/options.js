@@ -310,7 +310,7 @@ const defaultStrat = function (parentVal: any, childVal: any): any {
 function checkComponents (options: Object) {
   for (const key in options.components) {
     const lower = key.toLowerCase()
-    // components的name为slot和component，或者component名称已经注册过
+    // components的name为slot和component（不分大小写），或者component名称是html 保留标签和部分 SVG 保留标签
     if (isBuiltInTag(lower) || config.isReservedTag(lower)) {
       warn(
         'Do not use built-in or reserved HTML elements as component ' +
@@ -323,6 +323,21 @@ function checkComponents (options: Object) {
  * Ensure all props option syntax are normalized into the
  * Object-based format.
  */
+/*
+  法一：
+    const ChildComponent = {
+      props: ['someData']
+    }
+  法二：
+    const ChildComponent = {
+      props: {
+        someData: {
+          type: Number,
+          default: 0
+        }
+      }
+    }
+*/
 // 将options中的props属性转换成对象的形式
 // 因为props有些传入的时候可能会是数组的形式
 function normalizeProps (options: Object, vm: ?Component) { // options为实例化时传入的options, vm是Vue实例
@@ -370,6 +385,42 @@ function normalizeProps (options: Object, vm: ?Component) { // options为实例�
 /**
  * Normalize all injections into Object-based format
  */
+/*
+    子组件法一：
+      const ChildComponent = {
+        template: '<div>child component</div>',
+        created: function () {
+          // 这里的 data 是父组件注入进来的
+          console.log(this.data)
+        },
+        inject: ['data']
+      }
+
+    子组件法二：
+    const ChildComponent = {
+      template: '<div>child component</div>',
+      created: function () {
+        console.log(this.d)
+      },
+      // 对象的语法类似于允许我们为注入的数据声明一个别名
+      inject: {
+        d: 'data'
+      }
+    }
+
+
+    父组件：
+      var vm = new Vue({
+        el: '#app',
+        // 向子组件提供数据
+        provide: {
+          data: 'test provide'
+        },
+        components: {
+          ChildComponent
+        }
+      })
+*/
 // 将options中的inject属性转换成对象的形式
 // 因为inject有些传入的时候可能会是数组的形式
 function normalizeInject (options: Object, vm: ?Component) {
@@ -404,18 +455,25 @@ function normalizeInject (options: Object, vm: ?Component) {
  * Normalize raw function directives into object format.
  */
 /* 将options中的directives属性转换成对象的形式
-Vue.directive('color', function (el, binding) {
-  el.style.backgroundColor = binding.value
-})
-normalizeDirectives构造函数会把这个指令传入的参数，最终转换成下面这种形式
-color: {
-  bind: function (el, binding) {
-    el.style.backgroundColor = binding.value
-  },
-  update: function (el, binding) {
-    el.style.backgroundColor = binding.value
-  }
-}
+    <div id="app" v-test1 v-test2>{{test}}</div>
+
+    var vm = new Vue({
+      el: '#app',
+      data: {
+        test: 1
+      },
+      // 注册两个局部指令
+      directives: {
+        test1: {
+          bind: function (el, binding) {
+            console.log('v-test1')
+          }
+        },
+        test2: function () {
+          console.log('v-test2')
+        }
+      }
+    })
 */
 function normalizeDirectives (options: Object) {
   const dirs = options.directives
@@ -453,6 +511,10 @@ export function mergeOptions (
   normalizeProps(child, vm)
   normalizeInject(child, vm)
   normalizeDirectives(child)
+
+
+
+
   // 当传入的options里有extends属性时，
   // 再次调用mergeOptions方法合并extends里的内容到实例的构造函数options上（即parent options）
   /*
@@ -485,6 +547,35 @@ export function mergeOptions (
     就会把传入的mounted, created钩子处理函数，
     还有methods方法提出来去和parent options做合并处理。
   */
+  /*
+    // 创建构造器
+    var Profile = Vue.extend({
+      template: '<p>{{firstName}} {{lastName}} aka {{alias}}</p>',
+      data: function () {
+        return {
+          firstName: 'Walter',
+          lastName: 'White',
+          alias: 'Heisenberg'
+        }
+      }
+    })
+    // 创建 Profile 实例，并挂载到一个元素上。
+    new Profile().$mount('#mount-point')
+
+
+    // 为自定义的选项 'myOption' 注入一个处理器。
+    Vue.mixin({
+      created: function () {
+        var myOption = this.$options.myOption
+        if (myOption) {
+          console.log(myOption)
+        }
+      }
+    })
+    new Vue({
+      myOption: 'hello!'
+    }) // => "hello!"
+  */
   const extendsFrom = child.extends
   if (extendsFrom) {
     parent = mergeOptions(parent, extendsFrom, vm)
@@ -496,6 +587,9 @@ export function mergeOptions (
       parent = mergeOptions(parent, child.mixins[i], vm)
     }
   }
+
+
+
 
   // 变量options存储合并之后的options，
   const options = {}

@@ -121,9 +121,12 @@ Vue.prototype.$mount = function (
  */
 // 获取el元素起始位置到终止位置的全部内容 (包含本身)
 function getOuterHTML (el: Element): string {
+  // IE浏览器
   if (el.outerHTML) {
     return el.outerHTML
-  } else {
+  }
+  // 非IE浏览器
+  else {
     const container = document.createElement('div')
     container.appendChild(el.cloneNode(true))
     return container.innerHTML
