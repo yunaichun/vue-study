@@ -61,14 +61,12 @@ export function initMixin (Vue: Class<Component>) {
     }
 
     /* istanbul ignore else */
-    // 当前环境是开发环境，则调用initProxy方法
+    // 设置渲染函数的作用域代理
     if (process.env.NODE_ENV !== 'production') {
-      // proxy是一个强大的特性，为我们提供了很多"元编程"能力。
-      // 对vm做了一个数据劫持
+      // proxy是一个强大的特性，为我们提供了很多"元编程"能力。对vm做了一个数据劫持
       initProxy(vm)
-    }
-    // 如果不是开发环境，则vue实例的_renderProxy属性指向vue实例本身。 
-    else {
+    } else {
+      // 如果不是开发环境，则vue实例的_renderProxy属性指向vue实例本身。 
       vm._renderProxy = vm
     }
 

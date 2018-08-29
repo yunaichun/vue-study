@@ -37,8 +37,28 @@ import {
  * how to merge a parent option value and a child option
  * value into the final value.
  */
-// 合并父子选项值为最终值的策略对象，此时 strats 是一个空对象，
-// 因为 config.optionMergeStrategies = Object.create(null)
+// 
+/*
+  Vue.config.optionMergeStrategies.customOption = function (parentVal, childVal) {
+      return parentVal ? (parentVal + childVal) : childVal
+  }
+  如上代码中，我们添加了自定义选项 customOption 的合并策略，其策略为：如果没有 parentVal 则直接返回 childVal，否则返回两者的和。
+  所以如下代码：
+
+  // 创建子类
+  const Sub = Vue.extend({
+      customOption: 1
+  })
+  // 以子类创建实例
+  const v = new Sub({
+      customOption: 2,
+      created () {
+          console.log(this.$options.customOption) // 3
+      }
+  })
+  最终，在实例的 created 方法中将打印为数字 3。上面的例子很简单，没有什么实际作用，但这为我们提供了自定义选项的机会，这其实是非常有用的。
+*/
+// 合并父子选项值为最终值的策略对象，此时 strats 是一个空对象，因为 config.optionMergeStrategies = Object.create(null)
 const strats = config.optionMergeStrategies
 
 
