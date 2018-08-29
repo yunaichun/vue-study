@@ -236,7 +236,7 @@ export function toArray (list: any, start?: number): Array<any> {
 /**
  * Mix properties into target object.
  */
-// 对象浅拷贝
+// 对象浅拷贝（_from选项始终可用，但是to选项会覆盖同名的_from选项字段）
 export function extend (to: Object, _from: ?Object): Object {
   for (const key in _from) {
     to[key] = _from[key]
