@@ -20,9 +20,11 @@ export function initEvents (vm: Component) {
   vm._hasHookEvent = false
 
   // init parent attached events
-  // 初始化父组件添加的事件
-  // vm.$options._parentListeners其实和上面的_events一样，都是用来表示父组件绑定在当前组件上的事件
-  // _parentListeners后续再找吧?
+  /*
+    vm.$options._parentListeners其实和上面的_events一样，都是用来表示父组件绑定在当前组件上的事件
+    我们之前看过一个函数叫做 createComponentInstanceForVnode，它在 core/vdom/create-component.js 文件中
+    _parentListeners 也出现这里，也就是说在创建子组件实例的时候才会有这个参数选项
+  */
   const listeners = vm.$options._parentListeners
 
   // 如果存在这些绑定的事件，那么就执行下面代码
