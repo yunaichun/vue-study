@@ -42,21 +42,33 @@ const sharedPropertyDefinition = {
  * @return {[type]}                   [description]
  */
 export function initState (vm: Component) {
+  // 在 Vue 实例对象添加_watchers属性，其初始值是一个数组，这个数组将用来存储所有该组件实例的 watcher 对象
   vm._watchers = []
   const opts = vm.$options
-  // 初始化data
-  if (opts.data) {
-    initData(vm)
-  } else {
-    observe(vm._data = {}, true /* asRootData */)
-  }
+
+
+  /*
+    props 选项的初始化要早于 data 选项的初始化，那么这是不是可以使用 props 初始化 data 数据的原因呢？
+    答案是：“是的”。
+  */
   // 初始化props
   if (opts.props) initProps(vm, opts.props)
   // 初始化methods
   if (opts.methods) initMethods(vm, opts.methods)
+
+
+  // 初始化data
+  if (opts.data) {
+    initData(vm)
+  } else {
+    // 如果不存在data选项则直接调用 observe 函数观测一个空对象：{}
+    observe(vm._data = {}, true /* asRootData */)
+  }
+
+
   // 初始化computed
   if (opts.computed) initComputed(vm, opts.computed)
-  // 初始化watch
+  // 初始化watch （避免把 Firefox 中原生 watch 函数误认为是我们预期的 opts.watch 选项）
   if (opts.watch && opts.watch !== nativeWatch) {
     initWatch(vm, opts.watch)
   }
