@@ -17,41 +17,96 @@ import {
   validateProp
 } from '../util/index'
 
+/* 
+  这个变量将总是保存着当前正在渲染的实例的引用
+  这个变量将总是保存着当前正在渲染的实例的引用，
+  所以它就是当前实例 components 下注册的子组件的父实例，所以 Vue 实际上就是这样做到自动侦测父级的。
+*/
 export let activeInstance: any = null
 export let isUpdatingChildComponent: boolean = false
 
 // initLifeCycle方法用来初始化一些生命周期相关的属性，以及为parent,child等属性赋值
 export function initLifecycle (vm: Component) {
-  // 把mergeOptions后的options赋值给options变量
+  // 定义 options，它是 vm.$options 的引用，后面的代码使用的都是 options 常量
   const options = vm.$options
 
-  // locate first non-abstract parent
-  // 定位第一个"非抽象"的父组件
-  // 当前vm实例有父实例parent，则赋值给parent变量。
-  let parent = options.parent
-  // 如果父实例存在，且该实例不是抽象组件
+
+
+  /* 一、options.parent来自哪里？
+    // 子组件本身并没有指定 parent 选项
+    var ChildComponent = {
+      created () {
+        // 但是在子组件中访问父实例，能够找到正确的父实例引用
+        console.log(this.$options.parent)
+      }
+    }
+
+    var vm = new Vue({
+        el: '#app',
+        components: {
+          // 注册组件
+          ChildComponent
+        },
+        data: {
+            test: 1
+        }
+    })
+
+    1、Vue 给我们提供了 parent 选项，使得我们可以手动指定一个组件的父实例，
+    2、但在上面的例子中，我们并没有手动指定 parent 选项，但是子组件依然能够正确地找到它的父实例，
+    3、这说明 Vue 在寻找父实例的时候是自动检测的。那它是怎么做的呢？
+  */
+  /* 二、options.abstract哪里设置？抽象的组件有什么特点呢？
+    // Vue 内部有一些选项是没有暴露给我们的，就比如这里的 abstract，
+    // 通过设置这个选项为 true，可以指定该组件是抽象的，那么通过该组件创建的实例也都是抽象的
+    AbsComponents = {
+      abstract: true,
+      created () {
+        console.log('我是一个抽象的组件')
+      }
+    }
+
+    1、一个最显著的特点就是它们一般不渲染真实DOM，
+       举个例子大家就明白了，Vue 内置了一些全局组件比如 keep-alive 或者 transition，
+       我们知道这两个组件它是不会渲染DOM至页面的，但他们依然给我提供了很有用的功能。
+    2、除了不渲染真实DOM，抽象组件还有一个特点，就是它们不会出现在父子关系的路径上。
+       这么设计也是合理的，这是由它们的性质所决定的。
+  */
+  // locate first non-abstract parent (查找第一个非抽象的父组件)
+  // 定义 parent，它引用当前实例的父实例
+  let parent = options.parent // options.parent 值的来历，且知道了它的值指向父实例
+  // 如果当前实例有父组件，且当前实例不是抽象的，是一个普通的组件实例
   if (parent && !options.abstract) {
-    // 如果父实例parent是抽象组件，则继续找parent上的parent。
-    // 直到找到非抽象组件为止。
+    /*
+      抽象的组件是不能够也不应该作为父级的，
+      所以 while 循环的目的就是沿着父实例链逐层向上寻找到第一个不抽象的实例作为 parent（父级）。
+      并且在找到父级之后将当前实例添加到父实例的 $children 属性中，这样最终的目的就达成了。
+    */
+    // 使用 while 循环查找第一个非抽象的父组件
     while (parent.$options.abstract && parent.$parent) {
       parent = parent.$parent
     }
-    // 之后把当前vm实例push到定位的第一个非抽象parent的$children属性上 
+    // 经过上面的 while 循环后，parent 应该是一个非抽象的组件，将它作为当前实例的父级，
+    // 所以将当前实例 vm 添加到父级的 $children 属性里！！！！！！
     parent.$children.push(vm)
   }
 
-  // 指定已创建的实例之父实例，在两者之间建立父子关系。
-  // 子实例可以用 this.$parent 访问父实例，子实例被推入父实例的 $children 数组中
+
+
+  // 设置当前实例的 $parent 属性，指向父级！！！！！！
   vm.$parent = parent
-  // 当前组件树的根 Vue 实例。
-  // 如果当前实例没有父实例，此实例将会是其自己。
+  // 设置 $root 属性，有父级就是用父级的 $root，否则 $root 指向自身
   vm.$root = parent ? parent.$root : vm
+
+
 
   //  当前实例的直接子组件。
   //  需要注意 $children 并不保证顺序，也不是响应式的。
   vm.$children = []
   // 一个对象，持有已注册过 ref 的所有子组件。
-  vm.$refs = {}\
+  vm.$refs = {}
+
+
 
   // 组件实例相应的 watcher 实例对象。
   vm._watcher = null

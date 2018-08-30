@@ -71,6 +71,8 @@ export function initMixin (Vue: Class<Component>) {
     }
 
     // expose real self
+    // 注意 vm._self 和 vm._renderProxy 不同，
+    // 首先在用途上来说寓意是不同的，另外 vm._renderProxy 有可能是一个代理对象，即 Proxy 实例。
     vm._self = vm
     // initLifeCycle方法用来初始化一些生命周期相关的属性，以及为parent,child等属性赋值
     initLifecycle(vm)

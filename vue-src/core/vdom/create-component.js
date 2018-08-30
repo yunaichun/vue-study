@@ -38,7 +38,7 @@ const componentVNodeHooks = {
     if (!vnode.componentInstance || vnode.componentInstance._isDestroyed) {
       const child = vnode.componentInstance = createComponentInstanceForVnode(
         vnode,
-        activeInstance,
+        activeInstance, // (options.parent选项)
         parentElm,
         refElm
       )
@@ -196,7 +196,7 @@ export function createComponent (
 
 export function createComponentInstanceForVnode (
   vnode: any, // we know it's MountedComponentVNode but flow doesn't
-  parent: any, // activeInstance in lifecycle state
+  parent: any, // activeInstance in lifecycle state (options.parent选项)
   parentElm?: ?Node,
   refElm?: ?Node
 ): Component {
