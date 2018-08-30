@@ -23,6 +23,11 @@ import {
   所以它就是当前实例 components 下注册的子组件的父实例，所以 Vue 实际上就是这样做到自动侦测父级的。
 */
 export let activeInstance: any = null
+/*
+  isUpdatingChildComponent 初始值为 false，只有当 updateChildComponent 函数开始执行的时候会被更新为 true，
+  当 updateChildComponent 执行结束时又将 isUpdatingChildComponent 的值还原为 false，
+  这是因为 updateChildComponent 函数需要更新实例对象的 $attrs 和 $listeners 属性，所以此时是不需要提示 $attrs 和 $listeners 是只读属性的。
+*/
 export let isUpdatingChildComponent: boolean = false
 
 // initLifeCycle方法用来初始化一些生命周期相关的属性，以及为parent,child等属性赋值

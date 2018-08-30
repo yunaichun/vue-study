@@ -18,6 +18,13 @@ import { isUpdatingChildComponent } from './lifecycle'
 // 初始化render
 export function initRender (vm: Component) {
   vm._vnode = null // the root of the child tree
+
+
+  /* 在 Vue 当前实例对象上添加了三个实例属性：
+    一、vm.$vnode
+    二、vm.$slots
+    三、vm.$scopedSlots
+  */
   const options = vm.$options
   // 父树中的占位符节点
   const parentVnode = vm.$vnode = options._parentVnode // the placeholder node in parent tree
@@ -26,44 +33,61 @@ export function initRender (vm: Component) {
   vm.$slots = resolveSlots(options._renderChildren, renderContext)
   vm.$scopedSlots = emptyObject
 
-  /**
-    vm._c: 是被模板template编译成的 render 函数使用；
 
-    vm.$createElement: 是用户手写 render 方法使用，我们在平时的开发工作中手写 render 方法的场景比较少，
-    如下：
-       <div id="app">
-          {{ message }}
-        </div>
-        相当于我们编写如下 render 函数：
-        render: function (createElement) {
-          return createElement('div', {
-             attrs: {
-                id: 'app'
-              },
-          }, this.message)
-        }
 
-    这俩个方法支持的参数相同，并且内部都调用了 createElement 方法。
+  /* 在 Vue 当前实例对象上添加了两个方法：
+    一、vm._c: 是被模板template编译成的 render 函数使用 （其定义在core/instance/render-helpers/index.js中）
+    二、vm.$createElement: 是用户手写 render 方法使用，我们在平时的开发工作中手写 render 方法的场景比较少
+        这俩个方法支持的参数相同，并且内部都调用了 createElement 方法
+
+    1、模板
+    <div id="app">
+      {{ message }}
+    </div>
+    2、render等价
+    render: function (createElement) {
+      return createElement('div', {
+         attrs: {
+            id: 'app'
+          },
+      }, this.message)
+    }
+    3、render等价
+    render: function () {
+      return this.$createElement('div', {
+         attrs: {
+            id: 'app'
+          },
+      }, this.message)
+    }
+    
   */
   // bind the createElement fn to this instance
   // so that we get proper render context inside it.
   // args order: tag, data, children, normalizationType, alwaysNormalize
   // internal version is used by render functions compiled from templates
-  /*
-    render函数：_c相当于Vue中的createElement创建元素节点 
-    (其余定义在core/instance/render-helpers/index.js)
-  */
-  vm._c = (a, b, c, d) => createElement(vm, a, b, c, d, false)
+  vm._c = (a, b, c, d) => createElement(vm, a, b, c, d, false) 
   // normalization is always applied for the public version, used in
   // user-written render functions.
   vm.$createElement = (a, b, c, d) => createElement(vm, a, b, c, d, true)
 
+
+
+
+  /* 在 Vue 当前实例对象上添加了两个实例属性：
+    一、vm.$attrs
+    二、vm.$listeners
+   */
   // $attrs & $listeners are exposed for easier HOC creation.
   // they need to be reactive so that HOCs using them are always updated
   const parentData = parentVnode && parentVnode.data
-
   /* istanbul ignore else */
   if (process.env.NODE_ENV !== 'production') {
+    /*
+      isUpdatingChildComponent 初始值为 false，只有当 updateChildComponent 函数开始执行的时候会被更新为 true，
+      当 updateChildComponent 执行结束时又将 isUpdatingChildComponent 的值还原为 false，
+      这是因为 updateChildComponent 函数需要更新实例对象的 $attrs 和 $listeners 属性，所以此时是不需要提示 $attrs 和 $listeners 是只读属性的。
+    */
     defineReactive(vm, '$attrs', parentData && parentData.attrs || emptyObject, () => {
       !isUpdatingChildComponent && warn(`$attrs is readonly.`, vm)
     }, true)
