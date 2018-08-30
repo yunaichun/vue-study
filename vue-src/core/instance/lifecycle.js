@@ -443,6 +443,7 @@ export function deactivateChildComponent (vm: Component, direct?: boolean) {
 export function callHook (vm: Component, hook: string) {
   // 生命周期函数名称
   const handlers = vm.$options[hook]
+  // 在 Vue选项的合并中，生命周期钩子选项最终会被合并处理成一个数组，所以得到的 handlers 就是对应生命周期钩子的数组
   if (handlers) {
     for (let i = 0, j = handlers.length; i < j; i++) {
       try {
@@ -453,29 +454,35 @@ export function callHook (vm: Component, hook: string) {
     }
   }
   /*
-    当前实例的钩子函数如果是通过父组件的:hook方式来指定的，
-    那么它在执行钩子函数的回调方法时就是直接触发vm.$emit来执行。
-    （这种方式类似于dom中的addEventListener监听事件和dispatchEvent触发事件）
+    一、其中 vm._hasHookEvent 是在 initEvents 函数中定义的，
+        它的作用是判断是否存在生命周期钩子的事件侦听器，初始化值为 false 代表没有，
+        当组件检测到存在生命周期钩子的事件侦听器时，会将 vm._hasHookEvent 设置为 true。
+        那么问题来了，什么叫做生命周期钩子的事件侦听器呢？
 
-    如果不是上面这种方法指定的钩子函数，就需要执行callhook源码上半部分的代码逻辑。
-    找到vm实例上的钩子函数，然后执行绑定在它上面的回调。
-  */
- 
-  /*
-    如果是下列形式绑定的钩子，则_hasHookEvent属性为true。
+      1、
       <child
-        @hook:created="hookFromParent"
-      >
-    而像下面这种形式，它也存在钩子函数，但是它的_hasHookEvent就是false。
+        @hook:beforeCreate="handleChildBeforeCreate"
+        @hook:created="handleChildCreated"
+        @hook:mounted="handleChildMounted"
+        @hook:生命周期钩子
+       />
+
+      2、
+      // 而像下面这种形式，它也存在钩子函数，但是它的_hasHookEvent就是false。
       const childComponent = Vue.component('child', {
         ...
         created () {
           console.log('child created')
         }
       })
-   */
-  // _hasHookEvent不是表示是否存在钩子，
-  // 它表示的是父组件有没有直接绑定钩子函数在当前组件上
+
+    二、如上代码可以使用 hook: 加 生命周期钩子名称 的方式来监听组件相应的生命周期事件。
+        这是 Vue 官方文档上没有体现的，但你确实可以这么用，不过除非你对 Vue 非常了解，否则不建议使用。
+
+    三、疑问：
+        vm._hasHookEvent 是在什么时候被设置为 true 的呢？
+        或者换句话说，Vue 是如何检测是否存在生命周期事件侦听器的呢？
+  */
   if (vm._hasHookEvent) {
     vm.$emit('hook:' + hook)
   }

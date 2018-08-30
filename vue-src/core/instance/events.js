@@ -15,16 +15,48 @@ export function initEvents (vm: Component) {
   // 不包括组件内部methods和mounted等钩子方法
   vm._events = Object.create(null)
 
-  // 该属性表示父组件是否通过"@hook:"把钩子函数绑定在当前组件上
-  // @hook:钩子名称="绑定的函数"
+
+
+  /*
+    一、其中 vm._hasHookEvent 是在 initEvents 函数中定义的，
+        它的作用是判断是否存在生命周期钩子的事件侦听器，初始化值为 false 代表没有，
+        当组件检测到存在生命周期钩子的事件侦听器时，会将 vm._hasHookEvent 设置为 true。
+        那么问题来了，什么叫做生命周期钩子的事件侦听器呢？
+
+      1、
+      <child
+        @hook:beforeCreate="handleChildBeforeCreate"
+        @hook:created="handleChildCreated"
+        @hook:mounted="handleChildMounted"
+        @hook:生命周期钩子
+       />
+
+      2、
+      // 而像下面这种形式，它也存在钩子函数，但是它的_hasHookEvent就是false。
+      const childComponent = Vue.component('child', {
+        ...
+        created () {
+          console.log('child created')
+        }
+      })
+
+    二、如上代码可以使用 hook: 加 生命周期钩子名称 的方式来监听组件相应的生命周期事件。
+        这是 Vue 官方文档上没有体现的，但你确实可以这么用，不过除非你对 Vue 非常了解，否则不建议使用。
+
+    三、疑问：
+        vm._hasHookEvent 是在什么时候被设置为 true 的呢？
+        或者换句话说，Vue 是如何检测是否存在生命周期事件侦听器的呢？
+  */
   vm._hasHookEvent = false
 
-  // init parent attached events
+
+
   /*
     vm.$options._parentListeners其实和上面的_events一样，都是用来表示父组件绑定在当前组件上的事件
     我们之前看过一个函数叫做 createComponentInstanceForVnode，它在 core/vdom/create-component.js 文件中
     _parentListeners 也出现这里，也就是说在创建子组件实例的时候才会有这个参数选项
   */
+  // init parent attached events
   const listeners = vm.$options._parentListeners
 
   // 如果存在这些绑定的事件，那么就执行下面代码

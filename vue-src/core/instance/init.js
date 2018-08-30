@@ -22,9 +22,9 @@ export function initMixin (Vue: Class<Component>) {
     // 首先缓存当前的上下文到vm变量中，方便之后调用
     const vm: Component = this
     // a uid
-    // 设置_uid属性。_uid属性是唯一的。
-    // 当触发init方法，新建Vue实例时（当渲染组件时也会触发）uid都会递增
+    // 设置_uid属性。_uid属性是唯一的。当触发init方法，新建Vue实例时（当渲染组件时也会触发）uid都会递增
     vm._uid = uid++
+
 
     let startTag, endTag
     /* istanbul ignore if */
@@ -34,10 +34,12 @@ export function initMixin (Vue: Class<Component>) {
       mark(startTag)
     }
 
+
     // a flag to avoid this being observed
     // 如果传入值的_isVue为ture时(即传入的值是Vue实例本身)不会新建observer实例，
     // 即vm实例自身被观察的标志位
     vm._isVue = true
+
 
     // merge options
     // 当前这个Vue实例是组件，这个选项是 Vue 内部使用的
@@ -60,6 +62,7 @@ export function initMixin (Vue: Class<Component>) {
       )
     }
 
+
     /* istanbul ignore else */
     // 设置渲染函数的作用域代理
     if (process.env.NODE_ENV !== 'production') {
@@ -69,6 +72,7 @@ export function initMixin (Vue: Class<Component>) {
       // 如果不是开发环境，则vue实例的_renderProxy属性指向vue实例本身。 
       vm._renderProxy = vm
     }
+
 
     // expose real self
     // 注意 vm._self 和 vm._renderProxy 不同，
@@ -80,7 +84,16 @@ export function initMixin (Vue: Class<Component>) {
     initEvents(vm)
     // initRender方法用来初始化渲染
     initRender(vm)
-    
+
+
+    /*
+      beforeCreate 以及 created 这两个生命周期钩子的调用时机了。其中 initState 包括了：initProps、initMethods、initData、initComputed 以及 initWatch。
+      所以当 beforeCreate 钩子被调用时，所有与 props、methods、data、computed 以及 watch 相关的内容都不能使用，当然了 inject/provide 也是不可用的。
+      
+      作为对立面，created 生命周期钩子则恰恰是等待 initInjections、initState 以及 initProvide 执行完毕之后才被调用，
+      所以在 created 钩子中，是完全能够使用以上提到的内容的。但由于此时还没有任何挂载的操作，所以在 created 中是不能访问DOM的，即不能访问 $el。
+    */
+    // 调用生命周期钩子函数: beforeCreate
     callHook(vm, 'beforeCreate')
     // initInjections方法用来初始化inject
     initInjections(vm) // resolve injections before data/props
@@ -88,7 +101,9 @@ export function initMixin (Vue: Class<Component>) {
     initState(vm)
     // initProvide方法用来初始化provide
     initProvide(vm) // resolve provide after data/props
+    // 调用生命周期钩子函数: created
     callHook(vm, 'created')
+
 
     /* istanbul ignore if */
     if (process.env.NODE_ENV !== 'production' && config.performance && mark) {
@@ -96,6 +111,8 @@ export function initMixin (Vue: Class<Component>) {
       mark(endTag)
       measure(`vue ${vm._name} init`, startTag, endTag)
     }
+
+
     // 有el选项，挂载元素
     if (vm.$options.el) {
       vm.$mount(vm.$options.el)

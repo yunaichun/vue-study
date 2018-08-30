@@ -196,7 +196,7 @@ export function createComponent (
 
 export function createComponentInstanceForVnode (
   vnode: any, // we know it's MountedComponentVNode but flow doesn't
-  parent: any, // activeInstance in lifecycle state (options.parent选项)
+  parent: any, // activeInstance in lifecycle state (vm.$options.parent选项)
   parentElm?: ?Node,
   refElm?: ?Node
 ): Component {
@@ -207,7 +207,7 @@ export function createComponentInstanceForVnode (
     propsData: vnodeComponentOptions.propsData,
     _componentTag: vnodeComponentOptions.tag,
     _parentVnode: vnode,
-    _parentListeners: vnodeComponentOptions.listeners,
+    _parentListeners: vnodeComponentOptions.listeners, // (vm.$options._parentListeners选项)
     _renderChildren: vnodeComponentOptions.children,
     _parentElm: parentElm || null,
     _refElm: refElm || null
