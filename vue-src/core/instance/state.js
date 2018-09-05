@@ -79,15 +79,26 @@ export function initState (vm: Component) {
  * @param  {[type]} vm  [Vue实例]
  * @return {[type]}     [description]
  */
+/*
+1根据 vm.$options.data 选项获取真正想要的数据（注意：此时 vm.$options.data 是函数）
+2校验得到的数据是否是一个纯对象
+3检查数据对象 data 上的键是否与 props 对象上的键冲突
+4检查 methods 对象上的键是否与 data 对象上的键冲突
+5在 Vue 实例对象上添加代理访问数据对象的同名属性
+6最后调用 observe 函数开启响应式之路
+*/
 function initData (vm: Component) {
   let data = vm.$options.data
-  // 此时 vm.$options.data 的值应该是通过 mergeOptions 合并处理后的 mergedInstanceDataFn 函数，
-  // 所以判断data是不是'function'，接着实例对象上定义 _data 属性，该属性与 data 是相同的引用
+  /*
+    我们知道经过 mergeOptions 函数处理后 data 选项必然是一个函数，那么这里的判断还有必要吗？答案是有，
+    这是因为 beforeCreate 生命周期钩子函数是在 mergeOptions 函数之后 initData 之前被调用的，
+    如果在 beforeCreate 生命周期钩子函数中修改了 vm.$options.data 的值，
+    那么在 initData 函数中对于 vm.$options.data 类型的判断就是必要的了。
+  */
   data = vm._data = typeof data === 'function'
     ? getData(data, vm)
     : data || {}
-  // 组件的数据选项必须是一个函数，以便每个实例都可以维护返回的数据对象的独立副本：
-  // 如果data选项不是function，一个实例的data将影响所有其他实例的数据
+  // data函数已经转换成data数据了
   if (!isPlainObject(data)) {
     data = {}
     process.env.NODE_ENV !== 'production' && warn(
@@ -97,15 +108,14 @@ function initData (vm: Component) {
     )
   }
   // proxy data on instance
-  // 遍历data对象
+  // 使用 Object.keys 函数获取 data 对象的所有键
   const keys = Object.keys(data)
   const props = vm.$options.props
   const methods = vm.$options.methods
   let i = keys.length
-  // 循环的目的是在实例对象上对数据进行代理，这样我们就能通过 this.a 来访问 data.a 了
-  // 代码的处理是在 proxy 函数中，该函数是在实例对象上设置与 data 属性同名的访问器属性，然后使用 _data 做数据劫持
   while (i--) {
     const key = keys[i]
+    // 优先级的关系：props优先级 > data优先级 > methods优先级
     if (process.env.NODE_ENV !== 'production') {
       // vue methods中存在和data中同名的数据属性
       if (methods && hasOwn(methods, key)) {
@@ -144,6 +154,7 @@ function getData (data: Function, vm: Component): any {
     return data.call(vm, vm)
   } catch (e) {
     handleError(e, vm, `data()`)
+    // 如果有错误发生那么则返回一个空对象作为数据对象：return {}
     return {}
   }
 }

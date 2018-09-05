@@ -24,10 +24,53 @@ const arrayKeys = Object.getOwnPropertyNames(arrayMethods)
  * we don't want to force conversion because the value may be a nested value
  * under a frozen data structure. Converting it would defeat the optimization.
  */
- // 默认情况下，当一个无效的属性被设置时，新的值也会被转换成无效的。
- // 不管怎样当传递props时，我们不需要进行强制转换
+ // 是否开启数据监听的开关：默认为true
 export const observerState = {
   shouldConvert: true
+}
+
+/**
+ * Attempt to create an observer instance for a value,
+ * returns the new observer if successfully observed,
+ * or the existing observer if the value already has one.
+ */
+// 尝试创建一个Observer实例（__ob__），如果成功创建Observer实例则返回新的Observer实例，
+// 如果已有Observer实例则返回现有的Observer实例。
+export function observe (value: any, asRootData: ?boolean): Observer | void {
+  // 如果要观测的数据不是一个对象或者是 VNode 实例，则直接 return
+  if (!isObject(value) || value instanceof VNode) {
+    return
+  }
+  let ob: Observer | void
+  // 当一个数据对象被观测之后将会在该对象上定义 __ob__ 属性，
+  // 所以 if 分支的作用是用来避免重复观测一个数据对象
+  if (hasOwn(value, '__ob__') && value.__ob__ instanceof Observer) {
+    ob = value.__ob__
+  } 
+  // 如果数据对象上没有定义 __ob__ 属性，那么说明该对象没有被观测过
+  else if (
+    // 是否开启数据监听的开关：默认为true
+    observerState.shouldConvert &&
+    // isServerRendering() 函数的返回值是一个布尔值，用来判断是否是服务端渲染
+    !isServerRendering() &&
+    // 当数据对象是数组或纯对象的时候，才有必要对其进行观测
+    (Array.isArray(value) || isPlainObject(value)) &&
+    // 要被观测的数据对象必须是可扩展的。一个普通的对象默认就是可扩展的
+    // 以下三个方法都可以使得一个对象变得不可扩展：Object.preventExtensions()、Object.freeze() 以及 Object.seal()
+    Object.isExtensible(value) &&
+    // Vue 实例对象拥有 _isVue 属性，所以这个条件用来避免 Vue 实例对象被观测 (Vue.prototype._init)
+    !value._isVue
+  ) {
+    // 第一次实例化Observer
+    ob = new Observer(value)
+  }
+  // asRootData传进来是true
+  if (asRootData && ob) {
+    // 如果是根数据则计数，后面Observer中的observe的asRootData非true
+    ob.vmCount++
+  }
+  // observe 函数的返回值就是 ob (Observer实例函数)
+  return ob
 }
 
 /**
@@ -115,41 +158,6 @@ function copyAugment (target: Object, src: Object, keys: Array<string>) {
     const key = keys[i]
     def(target, key, src[key])
   }
-}
-
-/**
- * Attempt to create an observer instance for a value,
- * returns the new observer if successfully observed,
- * or the existing observer if the value already has one.
- */
-// 尝试创建一个Observer实例（__ob__），如果成功创建Observer实例则返回新的Observer实例，
-// 如果已有Observer实例则返回现有的Observer实例。
-export function observe (value: any, asRootData: ?boolean): Observer | void {
-  if (!isObject(value) || value instanceof VNode) {
-    return
-  }
-  let ob: Observer | void
-  if (hasOwn(value, '__ob__') && value.__ob__ instanceof Observer) {
-    // 已经存在observer实例
-    ob = value.__ob__
-  } else if (
-    // 这里的判断是为了确保value是单纯的对象，而不是函数或者是Regexp等情况
-    observerState.shouldConvert &&
-    !isServerRendering() && // 不是服务端渲染
-    (Array.isArray(value) || isPlainObject(value)) && //是数组或者对象
-    Object.isExtensible(value) &&
-    !value._isVue
-  ) {
-    // 第一次实例化Observer
-    ob = new Observer(value)
-  }
-  // asRootData传进来是true
-  if (asRootData && ob) {
-    // 如果是根数据则计数，后面Observer中的observe的asRootData非true
-    ob.vmCount++
-  }
-  // 返回new Observer(data)实例函数
-  return ob
 }
 
 /**
