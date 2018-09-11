@@ -235,6 +235,23 @@ export function defineReactive (
 // helpers
 
 /**
+ * Collect dependencies on array elements when the array is touched, since
+ * we cannot intercept array element access like property getters.
+ */
+// 数组深层嵌套依赖的收集(数组嵌套对象、数组嵌套数组)
+function dependArray (value: Array<any>) {
+  for (let e, i = 0, l = value.length; i < l; i++) {
+    e = value[i]
+    // 成员是对象或者数组进行依赖收集: { w: 1 }、[{ w: [1] }, [1], 3]
+    e && e.__ob__ && e.__ob__.dep.depend()
+    // 成员是数组深层嵌套的情况：递归执行该方法继续深层依赖收集[{ w: [1] }, [1], 3]
+    if (Array.isArray(e)) {
+      dependArray(e)
+    }
+  }
+}
+
+/**
  * Augment an target Object or Array by intercepting
  * the prototype chain using __proto__
  */
@@ -272,17 +289,21 @@ function copyAugment (target: Object, src: Object, keys: Array<string>) {
 export function set (target: Array<any> | Object, key: any, val: any): any {
   // target是数组：向target数组中插入val(索引为key)，同时返回此val
   if (Array.isArray(target) && isValidArrayIndex(key)) {
+    // 将数组的长度修改为 target.length 和 key 中的较大者，否则如果当要设置的元素的索引大于数组长度时 splice 无效
     target.length = Math.max(target.length, key)
+    // 数组的 splice 变异方法能够完成数组元素的删除、添加、替换等操作。是能够触发响应的
     target.splice(key, 1, val)
-    // 因为数组不需要进行响应式处理，数组会修改七个Array原型上的方法来进行响应式处理
     return val
   }
-  // target是对象target中含有此key：替换此target索引为key的值为val，同时返回此val
+  // 已存在的属性是响应式的，将自动触发响应
+  // https://github.com/vuejs/vue/issues/6845
   if (hasOwn(target, key)) {
     target[key] = val
     return val
   }
-  // 获得target的Oberver实例
+
+  // 以下是在给对象添加一个全新的属性
+  // 定义了 ob 常量，它是数据对象 __ob__ 属性的引用
   const ob = (target: any).__ob__
   // _isVue 一个防止vm实例自身被观察的标志位 ，_isVue为true则代表vm实例，也就是this
   // vmCount判断是否为根节点，存在则代表是data的根节点，
@@ -291,6 +312,27 @@ export function set (target: Array<any> | Object, key: any, val: any): any {
     /*  
       Vue 不允许在已经创建的实例上动态添加新的根级响应式属性(root-level reactive property)。
       https://cn.vuejs.org/v2/guide/reactivity.html#检测变化的注意事项
+    */ 
+    /*
+      那么为什么不允许在根数据对象上添加属性呢？因为这样做是永远触发不了依赖的。
+      原因就是根数据对象的 Observer 实例收集不到依赖(观察者)，如下：
+      const data = {
+        obj: {
+          a: 1
+          __ob__ // ob2
+        },
+        __ob__ // ob1
+      }
+      new Vue({
+        data
+      })
+      如上代码所示，ob1 就是属于根数据的 Observer 实例对象，
+      如果想要在根数据上使用 Vue.set/$set 并触发响应：
+      Vue.set(data, 'someProperty', 'someVal')
+
+      那么 data 字段必须是响应式数据才行，这样当 data 字段被依赖时，才能够收集依赖(观察者)到两个“筐”中(data属性自身的 dep以及data.__ob__)。
+      这样在 Vue.set/$set 函数中才有机会触发根数据的响应。
+      但 data 本身并不是响应的，这就是问题所在。
     */
     process.env.NODE_ENV !== 'production' && warn(
       'Avoid adding reactive properties to a Vue instance or its root $data ' +
@@ -298,12 +340,13 @@ export function set (target: Array<any> | Object, key: any, val: any): any {
     )
     return val
   }
-  // target数据未被观测过：data.__ob__ = new Observer()
+  // target 也许原本就是非响应的，这个时候 target.__ob__ 是不存在的
+  // 所以当发现 target.__ob__ 不存在时，就简单的赋值即可
   if (!ob) {
     target[key] = val
     return val
   }
-  // 为对象defineProperty上在变化时通知的属性（this.value = value）
+  // 使用 defineReactive 函数设置属性值，这是为了保证新添加的属性是响应式的（this.value = value）
   defineReactive(ob.value, key, val)
   /*
     假设有如下数据对象：
@@ -355,6 +398,7 @@ export function set (target: Array<any> | Object, key: any, val: any): any {
     Vue.set(data.a, 'c', 1)
     所以 __ob__ 属性以及 __ob__.dep 的主要作用是为了添加、删除属性时有能力触发依赖，而这就是 Vue.set 或 Vue.delete 的原理。
     */
+  // 调用 __ob__.dep.notify() 从而触发响应
   ob.dep.notify()
   return val
 }
@@ -368,7 +412,7 @@ export function set (target: Array<any> | Object, key: any, val: any): any {
 目标对象不能是一个 Vue 实例或 Vue 实例的根数据对象。
 */
 export function del (target: Array<any> | Object, key: any) {
-  // target是数组：向target数组中删除索引为key的值
+  // 数组的 splice 变异方法能够完成数组元素的删除、添加、替换等操作。是能够触发响应的
   if (Array.isArray(target) && isValidArrayIndex(key)) {
     target.splice(key, 1)
     return
@@ -392,27 +436,10 @@ export function del (target: Array<any> | Object, key: any) {
   }
   // 删除target中key的属性
   delete target[key]
-  // target未被观测过：data.__ob__ = new Observer()
+  // 判断 ob 对象是否存在，如果不存在说明 target 对象原本就不是响应的，所以直接返回(return)即可
   if (!ob) {
     return
   }
-  // 手动通知观察者：target删除了某属性值
+  // 如果 ob 对象存在，说明 target 对象是响应的，需要触发响应才行，即执行 ob.dep.notify()
   ob.dep.notify()
-}
-
-/**
- * Collect dependencies on array elements when the array is touched, since
- * we cannot intercept array element access like property getters.
- */
-// 数组深层嵌套依赖的收集(数组嵌套对象、数组嵌套数组)
-function dependArray (value: Array<any>) {
-  for (let e, i = 0, l = value.length; i < l; i++) {
-    e = value[i]
-    // 成员是对象或者数组进行依赖收集: { w: 1 }、[{ w: [1] }, [1], 3]
-    e && e.__ob__ && e.__ob__.dep.depend()
-    // 成员是数组深层嵌套的情况：递归执行该方法继续深层依赖收集[{ w: [1] }, [1], 3]
-    if (Array.isArray(e)) {
-      dependArray(e)
-    }
-  }
 }
