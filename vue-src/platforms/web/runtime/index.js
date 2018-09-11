@@ -59,8 +59,10 @@ extend(Vue.options.components, platformComponents)
 Vue.prototype.__patch__ = inBrowser ? patch : noop
 
 // public mount method
-// 通过 el 获取相应的DOM元素
-// 然后调用 lifecycle.js 文件中的 _mount 方法
+/* 
+1、运行时版 Vue 的入口文件
+2、完整版 Vue 的入口文件，重新定义了 $mount 函数，但是保留了运行时 $mount 的功能，并在此基础上为 $mount 函数添加了编译模板的能力
+*/
 Vue.prototype.$mount = function (
   el?: string | Element,
   hydrating?: boolean

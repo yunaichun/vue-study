@@ -18,24 +18,23 @@ import { query } from './util/index'
 import { shouldDecodeNewlines } from './util/compat'
 import { compileToFunctions } from './compiler/index'
 
-// 返回此id的innerHTML内容
-const idToTemplate = cached(id => {
-  const el = query(id)
-  return el && el.innerHTML
-})
 
 // 缓存来自web/runtime/index.js文件的$mount函数 (不带编译 $mount 方法)
 const mount = Vue.prototype.$mount
-// 覆盖来自web/runtime/index.js文件的$mount函数
+/* 
+1、运行时版 Vue 的入口文件
+2、完整版 Vue 的入口文件，重新定义了 $mount 函数，但是保留了运行时 $mount 的功能，并在此基础上为 $mount 函数添加了编译模板的能力
+*/
 Vue.prototype.$mount = function (
   el?: string | Element,
   hydrating?: boolean
 ): Component {
-  // 根据el获取相应的DOM元素：可以传入元素属性名，也可以直接传入DOM节点
+  // 根据el获取相应的DOM元素：可以传入元素属性名，也可以直接传入DOM节点。
+  // 这个元素我们称之为挂载点
   el = el && query(el)
 
   /* istanbul ignore if */
-  // 不允许将Vue元素挂载到html和body标签
+  // 载点的本意是 组件挂载的占位，它将会被组件自身的模板 替换掉，而 <body> 元素和 <html> 元素显然是不能被替换掉的。
   if (el === document.body || el === document.documentElement) {
     process.env.NODE_ENV !== 'production' && warn(
       `Do not mount Vue to <html> or <body> - mount to normal elements instead.`
@@ -114,6 +113,12 @@ Vue.prototype.$mount = function (
   // 调用已经缓存下来的web/runtime/index.js文件中的不带编译 $mount 方法
   return mount.call(this, el, hydrating)
 }
+
+// 返回此id的innerHTML内容
+const idToTemplate = cached(id => {
+  const el = query(id)
+  return el && el.innerHTML
+})
 
 /**
  * Get outerHTML of elements, taking care

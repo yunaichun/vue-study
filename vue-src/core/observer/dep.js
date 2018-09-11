@@ -26,6 +26,7 @@ export default class Dep {
 
   // 移除一个观察者(splice)
   removeSub (sub: Watcher) {
+    // 接收一个要被移除的观察者作为参数，然后使用 remove 工具函数
     remove(this.subs, sub)
   }
 

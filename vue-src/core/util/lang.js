@@ -27,6 +27,14 @@ export function def (obj: Object, key: string, val: any, enumerable?: boolean) {
 /**
  * Parse simple path.
  */
+/*
+不是 \w，也就是说这个位置不能是 字母 或 数字 或 下划线
+不是字符 .
+不是字符 $
+
+举几个例子如 obj~a、obj/a、obj*a、obj+a 等，这些字符串中的 ~、/、* 以及 + 字符都能成功匹配正则 bailRE，这时 parsePath 函数将返回 undefined，也就是解析失败。
+ bailRE 正则只有如下这几种形式的字符串才能解析成功：obj.a、this.$watch 等，看到这里你也应该知道为什么 bailRE 正则中包含字符 . 和 $。
+*/
 const bailRE = /[^\w.$]/
 export function parsePath (path: string): any {
   if (bailRE.test(path)) {

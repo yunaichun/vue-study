@@ -243,7 +243,21 @@ export function mountComponent (
   el: ?Element,
   hydrating?: boolean
 ): Component {
-  // 在Vue实例对象上添加 $el 属性，指向挂载点元素
+  /*
+    在组件实例对象上添加 $el 属性，其值为挂载元素 el。我们知道 $el 的值是组件模板根元素的引用，如下代码：
+
+      <div id="foo"></div>
+
+      <script>
+      const new Vue({
+        el: '#foo',
+        template: '<div id="bar"></div>'
+      })
+      </script>
+    上面代码中，挂载元素是一个 id 为 foo 的 div 元素，而组件模板是一个 id 为 bar 的 div 元素。
+    那么 vm.$el 的值应该是哪一个 div 元素的引用？答案是：vm.$el 是 id 为 bar 的 div 的引用。
+    这是因为 vm.$el 始终是组件模板的根元素。由于我们传递了 template 选项指定了模板，那么 vm.$el 自然就是 id 为 bar 的 div 的引用。
+  */
   vm.$el = el
 
   // render 不存在的情况
@@ -278,9 +292,9 @@ export function mountComponent (
         )
       }
     }
-  }
+  } 
 
-  // 触发 beforeMount 钩子
+   // 触发 beforeMount 钩子
   callHook(vm, 'beforeMount')
 
   let updateComponent
@@ -294,30 +308,33 @@ export function mountComponent (
       const endTag = `vue-perf-end:${id}`
 
       mark(startTag)
-      // vm_render 方法最终返回一个 vnode 对象，即虚拟DOM，
-      // 然后作为 vm_update 的第一个参数传递了过去
+      // vm._render 函数的作用是调用 vm.$options.render 函数并返回生成的虚拟节点(vnode)
       const vnode = vm._render()
       mark(endTag)
       measure(`vue ${name} render`, startTag, endTag)
 
       mark(startTag)
-      // 当 vm._render 执行的时候，所依赖的变量就会被求值，并被收集为依赖。
-      // 按照Vue中 watcher.js 的逻辑，当依赖的变量有变化时不仅仅回调函数被执行，
-      // 实际上还要重新求值，即还要执行一遍：() => { vm._update(vm._render(), hydrating) }
+      // vm._update 函数的作用是把 vm._render 函数生成的虚拟节点渲染成真正的 DOM
       vm._update(vnode, hydrating)
       mark(endTag)
       measure(`vue ${name} patch`, startTag, endTag)
     }
   } else {
     updateComponent = () => {
-      // vm_render 方法最终返回一个 vnode 对象，即虚拟DOM，然后作为 vm_update 的第一个参数传递了过去
+      // vm._render 函数的作用是调用 vm.$options.render 函数并返回生成的虚拟节点(vnode)
+      // vm._update 函数的作用是把 vm._render 函数生成的虚拟节点渲染成真正的 DOM
       vm._update(vm._render(), hydrating)
     }
   }
 
+  /*
+    Watcher 观察者实例将对 updateComponent 函数求值， updateComponent 函数的执行会间接触发渲染函数(vm.$options.render)的执行，
+    而渲染函数的执行则会触发数据属性的 get 拦截器函数，从而将依赖(观察者)收集，
+    当数据变化时将重新执行 updateComponent 函数，这就完成了重新渲染。
+    同时我们把上面代码中实例化的观察者对象称为 渲染函数的观察者。
+  */
   // Watcher函数第一个参数是 vm, 第二个参数表达式或者函数, 第三个参数是回调函数，第四个参数是可选配置项
-  // Watcher 内部应该对第二个参数求值，也就是运行这个函数：updateComponent() => vm._update(vm._render(), hydrating)
-  // vm._render() 函数被第一个执行( src/core/instance/render.js )
+  // Watcher 内部应该对第二个参数求值，也就是运行这个函数：updateComponent() => vm._update(vm._render(), hydrating)；vm._render() 函数被第一个执行( src/core/instance/render.js )
   vm._watcher = new Watcher(vm, updateComponent, noop)
   hydrating = false
 
