@@ -271,14 +271,28 @@ export default class Watcher {
    * Will be called by the scheduler.
    */
   run () {
+    // 标识一个观察者是否处于激活状态，或者可用状态
     if (this.active) {
       // Dep.target = new Watch() -> 取值parsePath(expOrFn) -> 触发get进行依赖收集
+      /*
+        对于渲染函数的观察者来讲，重新求值其实等价于重新执行渲染函数，
+        最终结果就是重新生成了虚拟DOM并更新真实DOM，这样就完成了重新渲染的过程
+      */
       const value = this.get()
+      /*
+        对于渲染函数的观察者来讲并不会执行这个 if 语句块，
+        因为 this.get 方法的返回值其实就等价于 updateComponent 函数的返回值，这个值将永远都是 undefined。
+
+        实际上 if 语句块内的代码是为非渲染函数类型的观察者准备的，它用来对比新旧两次求值的结果，
+        当值不相等的时候会调用通过参数传递进来的回调
+      */
       if (
+        /*新值和旧值不等的时候*/
         value !== this.value ||
         // Deep watchers and watchers on Object/Arrays should fire even
         // when the value is the same, because the value may
         // have mutated.
+        /*新值和旧值如果相等但是新值是对象的话*/
         isObject(value) ||
         this.deep
       ) {
@@ -287,17 +301,23 @@ export default class Watcher {
         const oldValue = this.value
         // 存储新值
         this.value = value
-        // 触发回调
+        /*
+          this.user 为真意味着这个观察者是开发者定义的，所谓开发者定义的是指那些通过 watch 选项或 $watch 函数定义的观察者，
+          这些观察者的特点是回调函数是由开发者编写的，所以这些回调函数在执行的过程中其行为是不可预知的，很可能出现错误，
+          这时候将其放到一个 try...catch 语句块中，这样当错误发生时我们就能够给开发者一个友好的提示
+        */
         if (this.user) {
           try {
             // 回调传递新值和旧值
             this.cb.call(this.vm, value, oldValue)
           } catch (e) {
+            /*
+              提示信息中包含了 this.expression 属性，我们前面说过该属性是被观察目标(expOrFn)的字符串表示，
+              这样开发者就能清楚的知道是哪里发生了错误。
+            */
             handleError(e, this.vm, `callback for watcher "${this.expression}"`)
           }
         } else {
-          // 即便值相同，拥有Deep属性的观察者以及在对象／数组上的观察者应该被触发更新，
-          // 因为它们的值可能发生改变。
           this.cb.call(this.vm, value, oldValue)
         }
       }
