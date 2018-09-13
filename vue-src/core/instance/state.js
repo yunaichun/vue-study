@@ -418,8 +418,22 @@ function initMethods (vm: Component, methods: Object) {
 function initWatch (vm: Component, watch: Object) {
   for (const key in watch) {
     const handler = watch[key]
-    // 数组则遍历进行createWatcher
-    // 参考watch参数：https://cn.vuejs.org/v2/api/#watch
+    /*
+      通过这个条件我们可以发现 handler 常量可以是一个数组，handler 常量是什么呢？
+      它的值是 watch[key]，也就是说我们在使用 watch 选项时可以通过传递数组来实现创建多个观察者，如下：
+        watch: {
+          name: [
+            function () {
+              console.log('name 改变了1')
+            },
+            function () {
+              console.log('name 改变了2')
+            }
+          ]
+        }
+
+      总的来说，在 Watcher 类的基础上，无论是实现 $watch 方法还是实现 watch 选项，都变得非常容易，这得益于一个良好的设计。
+    */
     if (Array.isArray(handler)) {
       for (let i = 0; i < handler.length; i++) {
         createWatcher(vm, key, handler[i])
@@ -429,17 +443,16 @@ function initWatch (vm: Component, watch: Object) {
     }
   }
 }
-// 创建一个观察者Watcher
+
+// Vue.prototype.$watch的第二个参数cb是对象的情况
 function createWatcher (
   vm: Component, // Vue实例
-  keyOrFn: string | Function, // watch的key名称
-  handler: any, // watch的key对应的值
+  keyOrFn: string | Function, // 监听对象
+  handler: any, // 回调
   options?: Object
 ) {
-  // 对对象类型进行严格检查，只有当对象是纯javascript对象的时候返回true
   if (isPlainObject(handler)) {
-    /*
-      这里是当watch的写法是这样的时候
+    /* 回调是对象
       watch: {
           test: {
               handler: function () {},
@@ -451,13 +464,21 @@ function createWatcher (
     handler = handler.handler
   }
   if (typeof handler === 'string') {
-    // 当然，也可以直接使用vm中methods的方法
+    /* 回调是字符串
+      watch: {
+        name: 'handleNameChange'
+      },
+      methods: {
+        handleNameChange () {
+          console.log('name change')
+        }
+      }
+    */
     handler = vm[handler]
   }
   // 用$watch方法创建一个watch来观察该对象的变化
   return vm.$watch(keyOrFn, handler, options) // key、cb
 }
-
 
 
 /**
@@ -515,23 +536,23 @@ export function stateMixin (Vue: Class<Component>) {
     options?: Object
   ): Function {
     const vm: Component = this
-    // cb是对象的话
+    /*一、cb是对象的情况*/
     if (isPlainObject(cb)) {
-      // 创建一个观察者Watcher
       return createWatcher(vm, expOrFn, cb, options)
     }
+    /*二、cb不是对象是函数的情况*/
     options = options || {}
     // 用户手动创建观察者
     options.user = true
     // 实例Watcher观察者
     const watcher = new Watcher(vm, expOrFn, cb, options)
-    // 有immediate参数的时候会立即执行
+    // 有immediate参数的时候会立即执行回调函数
     if (options.immediate) {
-      // 传入观察者的值，立即执行
+      // 不过此时回调函数的参数只有新值没有旧值
       cb.call(vm, watcher.value)
     }
     
-    // 返回一个取消观察函数，用来停止触发回调
+    // $watch 函数返回一个函数，这个函数的执行会解除当前观察者对属性的观察
     return function unwatchFn () {
       // 将自身从所有依赖收集订阅列表删除
       watcher.teardown()

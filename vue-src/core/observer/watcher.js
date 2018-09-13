@@ -356,16 +356,30 @@ export default class Watcher {
       // remove self from vm's watcher list
       // this is a somewhat expensive operation so we skip it
       // if the vm is being destroyed.
-      // 从vm实例的观察者列表中将自身移除
-      // 由于该操作比较耗费资源，所以如果vm实例正在被销毁则跳过该步骤。
+      /*
+        每个组件实例都有一个 vm._isBeingDestroyed 属性，它是一个标识，
+        为真说明该组件实例已经被销毁了，为假说明该组件还没有被销毁，
+        所以以上代码的意思是如果组件没有被销毁，那么将当前观察者实例从组件实例对象的 vm._watchers 数组中移除，
+
+        我们知道 vm._watchers 数组中包含了该组件所有的观察者实例对象，
+        所以将当前观察者实例对象从 vm._watchers 数组中移除是解除属性与观察者实例对象之间关系的第一步。
+        由于这个参数的性能开销比较大，所以仅在组件没有被销毁的情况下才会执行此操作。
+      */
       if (!this.vm._isBeingDestroyed) {
         remove(this.vm._watchers, this)
       }
+      /*
+        我们知道当一个属性与一个观察者建立联系之后，属性的 Dep 实例对象会收集到该观察者对象，
+        同时观察者对象也会将该 Dep 实例对象收集，这是一个双向的过程，
+
+        并且一个观察者可以同时观察多个属性，这些属性的 Dep 实例对象都会被收集到该观察者实例对象的 this.deps 数组中，
+        所以解除属性与观察者之间关系的第二步就是将当前观察者实例对象从所有的 Dep 实例对象中移除
+      */
       let i = this.deps.length
-      // 将自身从所有依赖收集订阅列表删除
       while (i--) {
         this.deps[i].removeSub(this)
       }
+      // 最后会将当前观察者实例对象的 active 属性设置为 false，代表该观察者对象已经处于非激活状态了：
       this.active = false
     }
   }
