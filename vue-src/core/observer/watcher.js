@@ -390,7 +390,27 @@ export default class Watcher {
  * getters, so that every nested property inside the object
  * is collected as a "deep" dependency.
  */
-// 递归每一个对象或者数组，触发它们的getter，使得对象或数组的每一个成员都被依赖收集，形成一个“深（deep）”依赖关系
+/* 
+data () {
+  return {
+    a: {
+      b: 1
+    }
+  }
+},
+watch: {
+  a () {
+    console.log('a 改变了')
+  }
+}
+
+数据对象 data 的属性 a 是一个对象，当实例化 Watcher 对象并观察属性 a 时，会读取属性 a 的值，这样的确能够触发属性 a 的 get 拦截器函数，但由于没有读取 a.b 属性的值，所以对于 b 来讲是没有收集到任何观察者的。
+这就是我们常说的浅观察，直接修改属性 a 的值能够触发响应，而修改 a.b 的值是触发不了响应的。
+
+
+traverse 函数的作用就是递归地读取被观察属性的所有子属性的值，
+这样被观察属性的所有子属性都将会收集到观察者，从而达到深度观测的目的
+*/
 const seenObjects = new Set()
 // 用来存放Oberser实例等id，避免重复读取
 function traverse (val: any) {
@@ -400,24 +420,47 @@ function traverse (val: any) {
 // 递归
 function _traverse (val: any, seen: ISet) {
   let i, keys
+  // 不是数组、对象、不可扩展，不存在深层遍历
   const isA = Array.isArray(val)
-  // 不是数组且不是对象 或 是不可扩展对象直接return，不需要收集深层依赖关系
   if ((!isA && !isObject(val)) || !Object.isExtensible(val)) {
     return
   }
+
+  /*
+    这段代码的作用不容忽视，它解决了循环引用导致死循环的问题，为了更好地说明问题我们举个例子，如下：
+    const obj1 = {}
+    const obj2 = {}
+
+    obj1.data = obj2
+    obj2.data = obj1
+
+    上面代码中我们定义了两个对象，分别是 obj1 和 obj2，并且 obj1.data 属性引用了 obj2，而 obj2.data 属性引用了 obj1，
+    这是一个典型的循环引用，假如我们使用 obj1 或 obj2 这两个对象中的任意一个对象出现在 Vue 的响应式数据中，如果不做防循环引用的处理，将会导致死循环
+  */
   if (val.__ob__) {
-    // 避免重复读取
+    /*
+      为了避免这种情况的发生，我们可以使用一个变量来存储那些已经被遍历过的对象，
+      当再次遍历该对象时程序会发现该对象已经被遍历过了，这时会跳过遍历，从而避免死循环
+      
+
+      if 语句块用来判断 val.__ob__ 是否有值，我们知道如果一个响应式数据是对象或数组，那么它会包含一个叫做 __ob__ 的属性，
+      这时我们读取 val.__ob__.dep.id 作为一个唯一的ID值，并将它放到 seenObjects 中：seen.add(depId)，
+      这样即使 val 是一个拥有循环引用的对象，当下一次遇到该对象时，我们能够发现该对象已经遍历过了：seen.has(depId)，这样函数直接 return 即可。
+    */
     const depId = val.__ob__.dep.id
     if (seen.has(depId)) {
       return
     }
-    // 将value对应的依赖添加进set集合
     seen.add(depId)
   }
-  if (isA) { // 递归数组
+
+  // 观测的是数组：深层访问数组子元素
+  if (isA) {
     i = val.length
     while (i--) _traverse(val[i], seen)
-  } else { // 递归对象
+  }
+  // 观测的是对象：深层访问对象子元素
+  else {
     keys = Object.keys(val)
     i = keys.length
     while (i--) _traverse(val[keys[i]], seen)
