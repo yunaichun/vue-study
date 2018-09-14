@@ -279,11 +279,22 @@ export default class Watcher {
     /* istanbul ignore else */
     if (this.lazy) {
       this.dirty = true
-    } else if (this.sync) {
-      // 同步则执行run直接渲染视图
+    } 
+    /* 同步则执行run直接渲染视图
+      new Vue({
+        watch: {
+          someWatch: {
+            handler () {},
+            sync: true
+          }
+        }
+      })
+   */
+    else if (this.sync) {
       this.run()
-    } else {
-      // 异步推送到观察者队列中，下一个tick时调用。
+    } 
+    /*异步推送到观察者队列中，下一个tick时调用。*/
+    else {
       queueWatcher(this)
     }
   }

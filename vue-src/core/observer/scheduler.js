@@ -145,7 +145,7 @@ function callUpdatedHooks (queue) {
  * The queue will be processed after the entire tree has been patched.
  */
 /*
-     -alive组件保存在队列中，
+  keep-alive组件保存在队列中，
   是到patch结束以后该队列会被处理
  */
 export function queueActivatedComponent (vm: Component) {
@@ -184,7 +184,8 @@ export function queueWatcher (watcher: Watcher) {
       // if already flushing, splice the watcher based on its id
       // if already past its id, it will be run next immediately.
       /*
-        当变量 flushing 为真时，说明队列正在执行更新，这时如果有观察者入队则会执行 else 分支中的代码，
+        当变量 flushing 为真时，说明队列正在执行更新，
+        这时如果有观察者入队则会执行 else 分支中的代码，
         这段代码的作用是为了保证观察者的执行顺序
       */
       let i = queue.length - 1
