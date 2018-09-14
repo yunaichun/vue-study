@@ -73,7 +73,7 @@ export default class Watcher {
     this.id = ++uid // uid for batching
     // 它标识着该观察者实例对象是否是激活状态，默认值为 true 代表激活
     this.active = true
-    // 定义了 this.dirty 属性，该属性的值与 this.computed 属性的值相同，也就是说只有计算属性的观察者实例对象的 this.dirty 属性的值才会为真，因为计算属性是惰性求值
+    // 定义了 this.dirty 属性，该属性的值与 this.lazy 属性的值相同，也就是说只有计算属性的观察者实例对象的 this.dirty 属性的值才会为真，因为计算属性是惰性求值
     this.dirty = this.lazy // for lazy watchers【进行脏检查用的】
     
     // 它们就是传说中用来实现避免收集重复依赖，且移除无用依赖的功能也依赖于它们
@@ -105,14 +105,17 @@ export default class Watcher {
       }
     }
 
-    // 调用 this.get() 方法: 求值
-    /* 
+    /* 调用 this.get() 方法: 求值
       一、求值的目的有两个，
-      1、第一个是能够触发访问器属性的 get 拦截器函数，
-      2、第二个是能够获得被观察目标的值
+          1、第一个是能够触发访问器属性的 get 拦截器函数，
+          2、第二个是能够获得被观察目标的值
       二、现象
-      1、this.value 属性保存着被观察目标的值
-      2、正是因为对被观察目标的求值才得以触发数据属性的 get 拦截器函数
+          1、this.value 属性保存着被观察目标的值
+          2、正是因为对被观察目标的求值才得以触发数据属性的 get 拦截器函数
+
+      三、计算属性的观察者是惰性求值
+          this.lazy = this.dirty = true
+          计算属性通过观察者的 evaluate 方法触发手动求值
     */
     this.value = this.lazy
       ? undefined
@@ -122,8 +125,8 @@ export default class Watcher {
   /**
    * Evaluate the getter, and re-collect dependencies.
    */
+  // 对属性的求值: 将 当前自身watcher观察者实例 设置给 Dep.target ，用以依赖收集
   get () {
-    // 将自身watcher观察者实例设置给Dep.target，用以依赖收集
     /*
       pushTarget 函数会将接收到的参数赋值给 Dep.target 属性，传递给 pushTarget 函数的参数就是调用该函数的观察者对象，
       所以 Dep.target 保存着一个观察者对象，其实这个观察者对象就是即将要收集的目标。
@@ -132,8 +135,11 @@ export default class Watcher {
     let value
     const vm = this.vm
     try {
-      // 对表达式求值，触发依赖的收集
-      // 函数的执行就意味着对被观察目标的求值，并将得到的值赋值给 value 变量，而且我们可以看到 this.get 方法的最后将 value 返回
+      /*
+        对表达式求值，触发依赖的收集
+        函数的执行就意味着对被观察目标的求值，并将得到的值赋值给 value 变量，
+        而且我们可以看到 this.get 方法的最后将 value 返回
+      */
       value = this.getter.call(vm, vm)
     } catch (e) {
       if (this.user) {
@@ -146,8 +152,10 @@ export default class Watcher {
       // dependencies for deep watching
       // 如果存在deep，则触发每个深层对象的依赖，追踪其变化
       if (this.deep) {
-        // 递归每一个对象或者数组，触发它们的getter，
-        // 使得对象或数组的每一个成员都被依赖收集，形成一个“深（deep）”依赖关系
+        /*
+          递归每一个对象或者数组，触发它们的getter，
+          使得对象或数组的每一个成员都被依赖收集，形成一个“深（deep）”依赖关系
+        */
         traverse(value)
       }
       // 将观察者实例从target栈中取出并设置给Dep.target
@@ -160,11 +168,56 @@ export default class Watcher {
     }
     return value
   }
+  /**
+   * Clean up for dependency collection.
+   */
+  // 避免重复收集依赖: 调用Dep的removeSub清理收集到的 watchers 依赖
+  cleanupDeps () {
+    /* 
+      对 deps 数组进行遍历，也就是对上一次求值所收集到的 Dep 对象进行遍历，
+      然后在循环内部检查上一次求值所收集到的 Dep 实例对象是否存在于当前这次求值所收集到的 Dep 实例对象中，
+      
+      如果不存在则说明该 Dep 实例对象已经和该观察者不存在依赖关系了，
+      这时就会调用 dep.removeSub(this) 方法并以该观察者实例对象作为参数传递，从而将该观察者对象从 Dep 实例对象中移除。
+    */
+    let i = this.deps.length
+    while (i--) {
+      const dep = this.deps[i]
+      if (!this.newDepIds.has(dep.id)) {
+        dep.removeSub(this)
+      }
+    }
+    /*
+      newDepIds 属性和 newDeps 属性被清空，
+      并且在被清空之前把值分别赋给了 depIds 属性和 deps 属性，
+      这两个属性将会用在下一次求值时避免依赖的重复收集
+    */
+    let tmp = this.depIds
+    this.depIds = this.newDepIds
+    this.newDepIds = tmp
+    this.newDepIds.clear()
+    tmp = this.deps
+    this.deps = this.newDeps
+    this.newDeps = tmp
+    this.newDeps.length = 0
+  }
 
+
+  /**
+   * Depend on all deps collected by this watcher.
+   */
+  // 添加依赖收集：Dep.target.addDep(this) -> watcher.addDep -> dep.addSub
+  depend () {
+    let i = this.deps.length
+    while (i--) {
+      // 调用Dep的方法: Dep.target.addDep(this)
+      this.deps[i].depend()
+    }
+  }
   /**
    * Add a dependency to this directive.
    */
-  // 调用Dep的addSub收集依赖
+  // 添加依赖收集： 调用Dep的addSub收集当前实例 watcher 依赖 
   addDep (dep: Dep) {
     /*    
       了解了 addSub 方法之后，我们再回到如下这段代码：
@@ -216,43 +269,12 @@ export default class Watcher {
     }
   }
 
-  /**
-   * Clean up for dependency collection.
-   */
-  // 调用Dep的removeSub清理依赖
-  cleanupDeps () {
-    /* 
-      对 deps 数组进行遍历，也就是对上一次求值所收集到的 Dep 对象进行遍历，
-      然后在循环内部检查上一次求值所收集到的 Dep 实例对象是否存在于当前这次求值所收集到的 Dep 实例对象中，
-      
-      如果不存在则说明该 Dep 实例对象已经和该观察者不存在依赖关系了，
-      这时就会调用 dep.removeSub(this) 方法并以该观察者实例对象作为参数传递，从而将该观察者对象从 Dep 实例对象中移除。
-    */
-    let i = this.deps.length
-    while (i--) {
-      const dep = this.deps[i]
-      if (!this.newDepIds.has(dep.id)) {
-        dep.removeSub(this)
-      }
-    }
-    // newDepIds 属性和 newDeps 属性被清空，
-    // 并且在被清空之前把值分别赋给了 depIds 属性和 deps 属性，
-    // 这两个属性将会用在下一次求值时避免依赖的重复收集
-    let tmp = this.depIds
-    this.depIds = this.newDepIds
-    this.newDepIds = tmp
-    this.newDepIds.clear()
-    tmp = this.deps
-    this.deps = this.newDeps
-    this.newDeps = tmp
-    this.newDeps.length = 0
-  }
 
   /**
    * Subscriber interface.
    * Will be called when a dependency changes.
    */
-  // 调度者接口，当依赖发生改变的时候进行回调。
+  // 触发依赖：dep.notify -> watcher.update
   update () {
     /* istanbul ignore else */
     if (this.lazy) {
@@ -265,7 +287,6 @@ export default class Watcher {
       queueWatcher(this)
     }
   }
-
   /**
    * Scheduler job interface.
    * Will be called by the scheduler.
@@ -324,33 +345,42 @@ export default class Watcher {
     }
   }
 
+
   /**
    * Evaluate the value of the watcher.
    * This only gets called for lazy watchers.
    */
-  // 获取观察者的值
-  // 实际是脏检查，在计算属性中的依赖发生改变的时候dirty会变成true
+  /*  evaluate -> watcher.get() -> watcher.getter() -> computed.get()
+
+    我们知道计算属性的观察者是惰性求值，
+    所以在创建计算属性观察者时除了 watcher.lazy 属性为 true 之外，watcher.dirty 属性的值也为 true，代表着当前观察者对象没有被求值，
+    而 evaluate 方法的作用就是用来手动求值的。
+
+    一、evaluate 方法中求值的那句代码最终所执行的求值函数就是用户定义的计算属性的 get 函数。举个例子，假设我们这样定义计算属性：
+        computed: {
+          compA () {
+            return this.a +1
+          }
+        }
+
+    二、那么对于计算属性 compA 来讲，执行其计算属性观察者对象的 wather.evaluate 方法求值时，本质上就是执行如下函数进行求值：
+        compA () {
+          return this.a +1
+        }
+
+    三、大家想一想这个函数的执行会发生什么事情？
+        我们知道数据对象的 a 属性是响应式的，所以如上函数的执行将会触发属性 a 的 get 拦截器函数。
+        所以这会导致属性 a 将会收集到一个依赖，这个依赖实际上就是计算属性的观察者对象。
+  */
+  // 计算属性computed依赖收集: 手动触发get函数
   evaluate () {
     this.value = this.get()
     this.dirty = false
   }
-
-  /**
-   * Depend on all deps collected by this watcher.
-   */
-  // 调用Dep的方法: 收集该watcher的所有deps依赖
-  depend () {
-    let i = this.deps.length
-    while (i--) {
-      // 调用Dep的方法: Dep.target.addDep(this)
-      this.deps[i].depend()
-    }
-  }
-
   /**
    * Remove self from all dependencies' subscriber list.
    */
-  // 将自身从所有依赖收集订阅列表删除 (Vue.prototype.$watch封装: /core/instance/state.js)
+  // Vue.prototype.$watch封装: 将自身从所有依赖收集订阅列表删除 (/core/instance/state.js)
   teardown () {
     if (this.active) {
       // remove self from vm's watcher list
@@ -384,6 +414,7 @@ export default class Watcher {
     }
   }
 }
+
 
 /**
  * Recursively traverse an object to evoke all converted

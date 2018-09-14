@@ -19,10 +19,19 @@ export default class Dep {
     this.subs = []
   }
 
+
+  // 在Watcher对象中通过depend方法调用, 会收集该watcher的所有deps依赖
+  depend () {
+    // new Watch() -> Dep.target = new Watch() -> 取值parsePath(expOrFn) -> 触发get进行依赖收集
+    if (Dep.target) {
+      Dep.target.addDep(this)
+    }
+  }
   // 添加一个观察者
   addSub (sub: Watcher) {
     this.subs.push(sub)
   }
+
 
   // 移除一个观察者(splice)
   removeSub (sub: Watcher) {
@@ -30,14 +39,6 @@ export default class Dep {
     remove(this.subs, sub)
   }
 
-  // 在Watcher对象中通过depend方法调用
-  // 会收集该watcher的所有deps依赖
-  depend () {
-    // new Watch() -> Dep.target = new Watch() -> 取值parsePath(expOrFn) -> 触发get进行依赖收集
-    if (Dep.target) {
-      Dep.target.addDep(this)
-    }
-  }
 
   // 手动通知所有观察者：可能是对对象添加或者删除某个属性值
   notify () {

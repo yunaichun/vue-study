@@ -245,12 +245,14 @@ function initProps (vm: Component, propsOptions: Object) {
   observerState.shouldConvert = true
 }
 
+
 /**
  * [initComputed 初始化Vue的computed选项]
  * @param  {[type]} vm:       Component     [Vue实例]
  * @param  {[type]} computed: Object        [初始computed选项数据]
  * @return {[type]}                         [description]
  */
+// 计算属性的观察者与非计算属性的观察者的行为是不一样的
 const computedWatcherOptions = { lazy: true }
 function initComputed (vm: Component, computed: Object) {
   // 为计算属性创建一个内部的监视器Watcher，保存在vm实例的_computedWatchers中 (引用传递)
@@ -260,19 +262,43 @@ function initComputed (vm: Component, computed: Object) {
   const isSSR = isServerRendering()
 
   for (const key in computed) {
-    // 获取computed的函数名为key的函数
     const userDef = computed[key]
-    // 计算属性可能是一个function，也有可能设置了get以及set的对象。
-    // 可以参考 https://cn.vuejs.org/v2/guide/computed.html#计算-setter
+    /* 可以参考 https://cn.vuejs.org/v2/guide/computed.html#计算-setter
+      计算属性可以是一个函数，如下：
+        computed: {
+          someComputedProp () {
+            return this.a + this.b
+          }
+        }
+        
+      另外计算属性也可以写成对象，如下：
+        computed: {
+          someComputedProp: {
+            get: function () {
+              return this.a + 1
+            },
+            set: function (v) {
+              this.a = v - 1
+            }
+          }
+        }
+    */
     const getter = typeof userDef === 'function' ? userDef : userDef.get
-    // 开发环境中，没有设置getter
+    // 在非生产环境下如果发现 getter 不存在，则直接打印警告信息，提示计算属性没有对应的 getter
     if (process.env.NODE_ENV !== 'production' && getter == null) {
       warn(
         `Getter is missing for computed property "${key}".`,
         vm
       )
     }
-    // 非服务端渲染
+    /*
+      只有在非服务端渲染时才会执行 if 语句块内的代码，因为服务端渲染中计算属性的实现本质上和使用 methods 选项差不多。
+      这时 if 语句块内的代码会被执行，可以看到在 if 语句块内创建了一个观察者实例对象，我们称之为 计算属性的观察者，
+
+      同时会把计算属性的观察者添加到 watchers 常量对象中，键值是对应计算属性的名字，
+      注意由于 watchers 常量与 vm._computedWatchers 属性具有相同的引用，所以对 watchers 常量的修改相当于对 vm._computedWatchers 属性的修改，
+      现在你应该知道了，vm._computedWatchers 对象是用来存储计算属性观察者的。
+    */
     if (!isSSR) {
       // create internal watcher for the computed property.
       // 为计算属性创建一个内部的监视器Watcher，保存在vm实例的_computedWatchers中
@@ -288,8 +314,7 @@ function initComputed (vm: Component, computed: Object) {
     // component-defined computed properties are already defined on the
     // component prototype. We only need to define computed properties defined
     // at instantiation here.
-    // 组件正在定义的计算属性已经定义在现有组件的原型上，则不会进行重复定义
-    // 我们只需要定义实例化的计算属性
+    // 调用 defineComputed 定义计算属性
     if (!(key in vm)) {
       defineComputed(vm, key, userDef)
     } else if (process.env.NODE_ENV !== 'production') {
@@ -310,30 +335,81 @@ export function defineComputed (
   key: string,
   userDef: Object | Function
 ) {
+  // 值与 initComputed 函数中定义的 isSSR 常量的值是取反的关系，也是一个布尔值，
+  // 用来标识是否应该缓存值，也就是说只有在非服务端渲染的情况下计算属性才会缓存值。
   const shouldCache = !isServerRendering()
-  // 计算属性是一个function
+  
+  /*
+    计算属性是一个函数，如下：
+      computed: {
+        someComputedProp () {
+          return this.a + this.b
+        }
+      }
+  */
   if (typeof userDef === 'function') {
     // 创建计算属性的getter
     sharedPropertyDefinition.get = shouldCache
       ? createComputedGetter(key) // 浏览器端
-      : userDef // 服务端
-    // 当userDef是一个function的时候是不需要setter的，所以这边给它设置成了空函数。
-    // 因为计算属性默认是一个function，只设置getter。
-    // 当需要设置setter的时候，会将计算属性设置成一个对象。参考：https://cn.vuejs.org/v2/guide/computed.html#计算-setter
+      : userDef // 服务端（由于服务端渲染不需要缓存值，所以直接使用 userDef 函数作为 sharedPropertyDefinition.get 的值）
+    /*
+      由于 userDef 是函数，这说明该计算属性并没有指定 set 拦截器函数，
+      所以直接将其设置为空函数 noop：sharedPropertyDefinition.set = noop。
+    */
     sharedPropertyDefinition.set = noop
   }
-  // 计算属性是一个get以及set的对象
+  /*
+    计算属性是一个对象，如下：
+      computed: {
+        someComputedProp: {
+          get: function () {
+            return this.a + 1
+          },
+          set: function (v) {
+            this.a = v - 1
+          }
+        }
+      }
+  */
   else {
-    sharedPropertyDefinition.get = userDef.get // get存在
-      ? shouldCache && userDef.cache !== false // 浏览器端，且计算属性的cache属性不为false
+    sharedPropertyDefinition.get = userDef.get // userDef.get 函数存在
+      ? shouldCache && userDef.cache !== false // 浏览器端，同时没有指定选项 userDef.cache 为假
         ? createComputedGetter(key) 
         : userDef.get
       : noop // get不存在
-    sharedPropertyDefinition.set = userDef.set
+    sharedPropertyDefinition.set = userDef.set // userDef.set 函数存在
       ? userDef.set
       : noop
   }
-  // 开发环境中，计算属性set为空函数的话
+  /*  
+    总之，无论 userDef 是函数还是对象，在非服务端渲染的情况下，配置对象 sharedPropertyDefinition 最终将变成如下这样：
+    sharedPropertyDefinition = {
+      enumerable: true,
+      configurable: true,
+      get: createComputedGetter(key),
+      set: userDef.set // 或 noop
+    }
+
+    举个例子，假如我们像如下这样定义计算属性：
+    computed: {
+      someComputedProp () {
+        return this.a + this.b
+      }
+    }
+
+    那么定义 someComputedProp 访问器属性时的配置对象为：
+    sharedPropertyDefinition = {
+      enumerable: true,
+      configurable: true,
+      get: createComputedGetter(key),
+      set: noop // 没有指定 userDef.set 所以是空函数
+    }
+  */
+ 
+  /*
+    在非生产环境下如果发现 sharedPropertyDefinition.set 的值是一个空函数，那么说明开发者并没有为计算属性定义相应的 set 拦截器函数，
+    这时会重写 sharedPropertyDefinition.set 函数，这样当你在代码中尝试修改一个没有指定 set 拦截器函数的计算属性的值时，就会得到一个警告信息。
+  */
   if (process.env.NODE_ENV !== 'production' &&
       sharedPropertyDefinition.set === noop) {
     sharedPropertyDefinition.set = function () {
@@ -343,23 +419,50 @@ export function defineComputed (
       )
     }
   }
+
   // 将计算属性变为访问器属性
   Object.defineProperty(target, key, sharedPropertyDefinition)
 }
 // 创建计算属性的getter：传入计算属性的key名称
 function createComputedGetter (key) {
-  // 返回一个函数
+  // 计算属性真正的 get 拦截器函数就是 computedGetter 函数
   return function computedGetter () {
     // 计算属性一个内部的监视器Watcher，保存在vm实例的_computedWatchers中
     const watcher = this._computedWatchers && this._computedWatchers[key]
     if (watcher) {
-      // 实际是脏检查，在计算属性中的依赖发生改变的时候dirty会变成true
-      // 在get的时候重新计算计算属性的输出值，计算完成后this.dirty = false
+      /*  
+          计算属性的观察者是惰性求值：
+          1、this.lazy = this.dirty = true
+          2、计算属性通过观察者的 evaluate 方法触发手动求值
+      */
       if (watcher.dirty) {
-        // 实际调用: watcher.get() -> watcher.getter() -> computed.get()
+        /* 实际调用: watcher.get() -> watcher.getter() -> computed.get()
+          一、evaluate 方法中求值的那句代码最终所执行的求值函数就是用户定义的计算属性的 get 函数。举个例子，假设我们这样定义计算属性：
+              computed: {
+                compA () {
+                  return this.a +1
+                }
+              }
+
+          二、那么对于计算属性 compA 来讲，执行其计算属性观察者对象的 wather.evaluate 方法求值时，本质上就是执行如下函数进行求值：
+              compA () {
+                return this.a +1
+              }
+
+          三、大家想一想这个函数的执行会发生什么事情？
+              我们知道数据对象的 a 属性是响应式的，所以如上函数的执行将会触发属性 a 的 get 拦截器函数。
+              所以这会导致属性 a 将会收集到一个依赖，这个依赖实际上就是计算属性的观察者对象。
+        */
         watcher.evaluate()
       }
-      // 依赖收集
+
+      /*  
+        Dep.target 属性的值是什么，我们回想一下整个过程：
+        首先   渲染函数的执行  会读取计算属性 compA 的值，从而触发计算属性 compA 的 get 拦截器函数，最终调用了 this.dep.depend() 方法收集依赖。
+        
+        这个过程中的关键一步就是  渲染函数的执行，   我们知道在渲染函数执行之前 Dep.target 的值必然是 渲染函数的观察者对象。
+        所以计算属性观察者对象的 this.dep 属性中所收集的就是渲染函数的观察者对象。
+      */
       if (Dep.target) {
         // watcher调用Dep的方法: 收集该watcher的所有deps依赖
         watcher.depend()
@@ -369,6 +472,7 @@ function createComputedGetter (key) {
     }
   }
 }
+
 
 /**
  * [initMethods 初始化Vue的methods选项]
@@ -409,6 +513,7 @@ function initMethods (vm: Component, methods: Object) {
   }
 }
 
+
 /**
  * [initWatch 初始化Vue的watch选项]
  * @param  {[type]} vm:    Component     [Vue实例]
@@ -443,7 +548,6 @@ function initWatch (vm: Component, watch: Object) {
     }
   }
 }
-
 // Vue.prototype.$watch的第二个参数cb是对象的情况
 function createWatcher (
   vm: Component, // Vue实例
