@@ -391,10 +391,12 @@ export function updateChildComponent (
     const propKeys = vm.$options._propKeys || []
     for (let i = 0; i < propKeys.length; i++) {
       const key = propKeys[i]
+      // 返回给定名字的 prop 的值[有各种异常情况的处理]
       props[key] = validateProp(key, vm.$options.props, propsData, vm)
     }
     observerState.shouldConvert = true
     // keep a copy of raw propsData
+    /*vm.$options.propsData 的更新是在调用 validateProp 之后进行的*/
     vm.$options.propsData = propsData
   }
 

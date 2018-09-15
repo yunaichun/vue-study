@@ -64,6 +64,13 @@ export default class Watcher {
       // 用来告诉观察者当数据变化时是否同步求值并执行回调
       this.sync = !!options.sync
     } else {
+      /*
+        默认是渲染函数的观测者
+        一、deep是watch的配置，是否深度检测
+        二、user是watch的配置，是否是用户手动创建的观测者
+        三、lazy是computed的配置，是否是computed观测配置
+        四、sync是否是触发依赖更新的同步配置，默认是非同步
+      */
       this.deep = this.user = this.lazy = this.sync = false
     }
 

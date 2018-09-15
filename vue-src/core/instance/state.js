@@ -182,43 +182,75 @@ export function proxy (target: Object, sourceKey: string, key: string) {
  * @return {[type]}                             [description]
  */
 function initProps (vm: Component, propsOptions: Object) {
-  // https://blog.csdn.net/BorderBox/article/details/76650869
-  // 全局扩展的数据传递: Vue.extend
+  /* 全局扩展的数据传递Vue.extend: https://blog.csdn.net/BorderBox/article/details/76650869
+    <some-comp prop1="1" prop2="2" />
+    解析出两个 props 的键值对，并生成一个对象：
+    {
+      prop1: '1',
+      prop2: '2'
+    }
+
+    实际上这个对象就是 vm.$options.propsData 的值：
+    vm.$options.propsData = {
+      prop1: '1',
+      prop2: '2'
+    }
+  */
   const propsData = vm.$options.propsData || {}
-  // 缓存props对象 (引用传递)
+  // 定义了 props 常量和 vm._props 属性，它和 vm._props 属性具有相同的引用并且初始值为空对象：{}。目的是缓存props对象
   const props = vm._props = {}
   // cache prop keys so that future props updates can iterate using Array
   // instead of dynamic object key enumeration.
-  // 缓存props属性的key (引用传递)
+  // 并且常量 keys 与 vm.$options._propKeys 属性具有相同的引用，且初始值是一个空数组：[]。目的是缓存props属性的key
   const keys = vm.$options._propKeys = []
+  // isRoot 常量用来标识是否是根组件，因为根组件实例的 $parent 属性的值是不存在的
   const isRoot = !vm.$parent
   // root instance props should be converted
-  // 根结点会给shouldConvert赋true，根结点的props应该被转换
+  /* 
+    一、根结点会给shouldConvert赋true，非根结点会给shouldConvert赋false
+        当调用 observe 函数去观测一个数据对象时，只有当变量 shouldObserve 为真的时候才会进行观测
+        所以，接下来根节点会对props进行观测，非根节点不会对props进行观测（数据来自已经是响应式的data，所以不需要重复观测了）
+
+    二、所以我们可以得出一个结论：在定义 props 数据时，不将 prop 值转换为响应式数据，
+        这里要注意的是：由于 props 本身是通过 defineReactive 定义的，所以 props 本身是响应式的，但没有对值进行深度定义。
+
+    三、为什么这样做呢？
+        很简单，我们知道 props 是来自外界的数据，或者更具体一点的说，props 是来自父组件的数据，
+        这个数据如果是一个对象(包括纯对象和数组)，那么它本身可能已经是响应式的了，所以不再需要重复定义。
+        另外在定义 props 数据之后，又设置observerState.shouldConvert = true将开关开启，这么做的目的是不影响后续代码的功能，因为这个开关是全局的。
+  */
   observerState.shouldConvert = isRoot
   // 遍历属性props对象
   for (const key in propsOptions) { 
-    // props的key值存入keys中【由于数组为引用传递，同时存入vm.$options._propKeys】
+    /* props的key值存入keys中 */
     keys.push(key)
-    // 获取props为key对应的属性值
+    /* validateProp 函数会返回给定名字的 prop 的值，也就是说常量 value 中保存着 prop 的值 */    
     const value = validateProp(key, propsOptions, propsData, vm)
     /* istanbul ignore else */
-    // 开发环境
     if (process.env.NODE_ENV !== 'production') {
-      // 获取prop的key的连字符('AbcPAE' -> 'abc-p-a-e')
+      /*
+        将 prop 的名字转为连字符加小写的形式，并将转换后的值赋值给 hyphenatedKey 常量
+        例如：'AbcPAE' -> 'abc-p-a-e'
+      */
       const hyphenatedKey = hyphenate(key)
-      // 当前prop的key值是否有(key,ref,slot,slot-scope,is)
-      if (isReservedAttribute(hyphenatedKey) ||
-          config.isReservedAttr(hyphenatedKey)) { // prop属性名是保留字符
+      /*
+        判断 prop 的名字是否是保留的属性(attribute)
+        例如：key,ref,slot,slot-scope,is
+      */
+      if (isReservedAttribute(hyphenatedKey) || config.isReservedAttr(hyphenatedKey)) {
         warn(
           `"${hyphenatedKey}" is a reserved attribute and cannot be used as component prop.`,
           vm
         )
       }
-      // 将props对象的属性key转换为访问器属性
+      /*
+        defineReactive 函数的第四个参数是 customSetter，即自定义的 setter，
+        这个 setter 会在你尝试修改 props 数据时触发，并打印警告信息提示你不要直接修改 props 数据
+
+        注意：传递动态props写法（https://cn.vuejs.org/v2/guide/components.html#字面量语法-vs-动态语法）
+      */
       defineReactive(props, key, value, () => {
         if (vm.$parent && !isUpdatingChildComponent) {
-          // 由于父组件重新渲染的时候会重写prop的值，所以应该直接使用prop来作为一个data或者计算属性的依赖
-          // https://cn.vuejs.org/v2/guide/components.html#字面量语法-vs-动态语法
           warn(
             `Avoid mutating a prop directly since the value will be ` +
             `overwritten whenever the parent component re-renders. ` +
@@ -228,15 +260,24 @@ function initProps (vm: Component, propsOptions: Object) {
           )
         }
       })
-    } else { // 生产环境
-      // 将props对象的属性key转换为访问器属性
+    } else {
+      /*
+        使用 defineReactive 函数将 prop 定义到常量 props 上，
+        我们知道 props 常量与 vm._props 属性具有相同的引用，所以这等价于在 vm._props 上定义了 prop 数据
+        
+        所以 props 本身是响应式的，但没有对值进行深度定义
+      */
       defineReactive(props, key, value)
     }
     // static props are already proxied on the component's prototype
     // during Vue.extend(). We only need to proxy props defined at
     // instantiation here.
-    // 静态prop在Vue.extend()期间已经在组件原型上代理了
-    // 我们只需要在这里进行代理prop
+    /*
+      只有当 key 不在组件实例对象上以及其原型链上没有定义时才会进行代理，这是一个针对子组件的优化操作，
+      对于子组件来讲这个代理工作在创建子组件构造函数时就完成了，即在 Vue.extend 函数中完成的，
+      这么做的目的是避免每次创建子组件实例时都会调用 proxy 函数去做代理，由于 proxy 函数中使用了 Object.defineProperty 函数，该函数的性能表现不佳，
+      所以这么做能够提升一定的性能指标
+    */
     if (!(key in vm)) {
       // 数据代理：app.text = app._props.text
       proxy(vm, `_props`, key)
@@ -301,8 +342,10 @@ function initComputed (vm: Component, computed: Object) {
     */
     if (!isSSR) {
       // create internal watcher for the computed property.
-      // 为计算属性创建一个内部的监视器Watcher，保存在vm实例的_computedWatchers中
-      // 这里的computedWatcherOptions参数传递了一个lazy为true，会使得watch实例的dirty为true
+      /*
+        为计算属性创建一个内部的监视器Watcher，保存在vm实例的_computedWatchers中
+        这里的computedWatcherOptions参数传递了一个lazy为true，会使得watch实例的dirty为true
+      */
       watchers[key] = new Watcher(
         vm,
         getter || noop,
