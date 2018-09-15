@@ -80,12 +80,12 @@ export function initState (vm: Component) {
  * @return {[type]}     [description]
  */
 /*
-1根据 vm.$options.data 选项获取真正想要的数据（注意：此时 vm.$options.data 是函数）
-2校验得到的数据是否是一个纯对象
-3检查数据对象 data 上的键是否与 props 对象上的键冲突
-4检查 methods 对象上的键是否与 data 对象上的键冲突
-5在 Vue 实例对象上添加代理访问数据对象的同名属性
-6最后调用 observe 函数开启响应式之路
+  1、根据 vm.$options.data 选项获取真正想要的数据（注意：此时 vm.$options.data 是函数）
+  2、校验得到的数据是否是一个纯对象
+  3、检查数据对象 data 上的键是否与 props 对象上的键冲突
+  4、检查 methods 对象上的键是否与 data 对象上的键冲突
+  5、在 Vue 实例对象上添加代理访问数据对象的同名属性
+  6、最后调用 observe 函数开启响应式之路
 */
 function initData (vm: Component) {
   let data = vm.$options.data
@@ -527,7 +527,10 @@ function initMethods (vm: Component, methods: Object) {
   const props = vm.$options.props
   for (const key in methods) {
     if (process.env.NODE_ENV !== 'production') {
-      // 方法为空
+      /*一、方法没有定义
+        这段代码用来检测该方法是否真正的有定义，
+        如果没有定义则打印警告信息，提示开发者是否正确地引用了函数
+      */
       if (methods[key] == null) {
         warn(
           `Method "${key}" has an undefined value in the component definition. ` +
@@ -535,14 +538,30 @@ function initMethods (vm: Component, methods: Object) {
           vm
         )
       }
-      // 与props名称冲突报出warning
+      /*二、方法名在props中有定义
+        我们知道 props 选项的初始化要先于 methods 选项，并且每个 prop 都需要挂载到组件实例对象下，
+        如此一来 methods 选项中的方法名字很有可能与 props 选项中的属性名字相同，这样会导致覆盖的问题，
+        为此需要检测 methods 选项中定义的方法名字是否在 props 选项中有定义
+      */
       if (props && hasOwn(props, key)) {
         warn(
           `Method "${key}" has already been defined as a prop.`,
           vm
         )
       }
-      // 与Vue的实例方法冲突
+      /*三、方法名为保留字段
+        检测方法名字 key 是否已经在组件实例对象 vm 中有了定义，并且该名字 key 为保留的属性名，什么是保留的属性名呢？
+        根据 isReserved 函数可知以字符 $ 或 _ 开头的名字为保留名，
+        如果这两个条件都成立，说明你定义的方法与 Vue 原生提供的内置方法冲突，比如：
+          methods: {
+            $set () {
+              alert('这个方法将覆盖 Vue 原生 $set 方法')
+            }
+          }
+
+        如上代码中我们定义了 $set 方法，但是 Vue 已经内置了叫做 $set 的方法，
+        如果允许这样做那么 Vue 内置的方法将被覆盖，所以需要打印警告信息提示开发者
+      */
       if ((key in vm) && isReserved(key)) {
         warn(
           `Method "${key}" conflicts with an existing Vue instance method. ` +
@@ -550,8 +569,14 @@ function initMethods (vm: Component, methods: Object) {
         )
       }
     }
-    // method为key的方法为null的时候写上空方法，有值时候将上下文替换成vm
-    // 然后可以通过this.methodname 去执行 methods[key]
+
+    /*
+      通过这句代码可知，之所以能够通过组件实例对象访问 methods 选项中定义的方法，
+      就是因为在组件实例对象上定义了与 methods 选项中所定义的同名方法，
+
+      当然了在定义到组件实例对象之前要检测该方法是否真正的有定义：methods[key] == null，
+      如果没有则添加一个空函数到组件实例对象上。
+    */
     vm[key] = methods[key] == null ? noop : bind(methods[key], vm)
   }
 }
