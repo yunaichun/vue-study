@@ -2,10 +2,25 @@
 
 import { extend } from 'shared/util'
 import { detectErrors } from './error-detector'
+
+/*compileToFunctions函数的创建者，参数是compile函数*/
 import { createCompileToFunctionFn } from './to-function'
 
+
+/**
+ * [createCompilerCreator '编译器创建者'createCompiler函数的  创建者]
+ * @param  {[type]} baseCompile: Function      [description]
+ * @return {[type]}                            [description]
+ */
+/* 
+  传递给 createCompilerCreator 函数的参数 baseCompile 在哪里调用的呢？
+  肯定是在 createCompiler 函数体内调用的。
+*/
 export function createCompilerCreator (baseCompile: Function): Function {
+  /*返回'编译器创建者'createCompiler函数*/
   return function createCompiler (baseOptions: CompilerOptions) {
+
+    /*定义 compile 函数，最终返回此 compile 函数*/
     function compile (
       template: string,
       options?: CompilerOptions
@@ -47,8 +62,13 @@ export function createCompilerCreator (baseCompile: Function): Function {
       return compiled
     }
 
+    /*最终返回一个对象，包含compile和compileToFunctions函数*/
     return {
       compile,
+      /*
+        compileToFunctions 这个函数是通过以 compile 函数作为参数调用 createCompileToFunctionFn 函数生成的，
+        所以我们一直所说的 compileToFunctions 函数其实准确的讲它应该是 createCompileToFunctionFn 函数的返回值
+      */
       compileToFunctions: createCompileToFunctionFn(compile)
     }
   }

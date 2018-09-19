@@ -17,11 +17,18 @@ function createFunction (code, errors) {
   }
 }
 
+
+/**
+ * [createCompileToFunctionFn compileToFunctions函数的创建者]
+ * @param  {[type]} compile: Function      [参数是compile函数]
+ * @return {[type]}                        [description]
+ */
 export function createCompileToFunctionFn (compile: Function): Function {
   const cache: {
     [key: string]: CompiledFunctionResult;
   } = Object.create(null)
 
+  /*最终返回compileToFunctions函数，这才是我们想要的函数*/
   return function compileToFunctions (
     template: string,
     options?: CompilerOptions,
