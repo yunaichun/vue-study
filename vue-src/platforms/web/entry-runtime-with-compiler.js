@@ -90,12 +90,14 @@ Vue.prototype.$mount = function (
         mark('compile')
       }
 
-      // 将template编译成render函数，这里会有render以及staticRenderFns两个返回，
-      // 这是vue的编译时优化，static静态不需要在VNode更新时进行patch，优化性能
+      /* 
+        一、compileToFunctions 函数的作用是把传入的模板字符串(template)编译成渲染函数(render)的
+        二、static静态不需要在VNode更新时进行patch，优化性能
+      */
       const { render, staticRenderFns } = compileToFunctions(template, {
-        shouldDecodeNewlines, // IE浏览器为true，其他浏览器为false
-        delimiters: options.delimiters,
-        comments: options.comments
+        shouldDecodeNewlines, // 当设为 true 时，意味着 Vue 在编译模板的时候，要对属性值中的换行符做兼容处理
+        delimiters: options.delimiters, // 改变纯文本插入分隔符；默认值：["{{", "}}"]
+        comments: options.comments // 当设为 true 时，将会保留且渲染模板中的 HTML 注释。默认值：false
       }, this)
       // 将编译成的 render 函数挂载到 this.$options 属性下
       options.render = render

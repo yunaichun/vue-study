@@ -65,9 +65,10 @@ export function createCompilerCreator (baseCompile: Function): Function {
     /*最终返回一个对象，包含compile和compileToFunctions函数*/
     return {
       compile,
-      /*
-        compileToFunctions 这个函数是通过以 compile 函数作为参数调用 createCompileToFunctionFn 函数生成的，
-        所以我们一直所说的 compileToFunctions 函数其实准确的讲它应该是 createCompileToFunctionFn 函数的返回值
+      /* 
+        一、compileToFunctions 函数的作用是把传入的模板字符串(template)编译成渲染函数(render)的
+        二、compileToFunctions 这个函数是通过以 compile 函数作为参数调用 createCompileToFunctionFn 函数生成的，
+            所以我们一直所说的 compileToFunctions 函数其实准确的讲它应该是 createCompileToFunctionFn 函数的返回值
       */
       compileToFunctions: createCompileToFunctionFn(compile)
     }
