@@ -8,6 +8,7 @@
 
   最后，真正的 模板字符串 到 渲染函数字符串 的编译工作实际上是通过调用 compile 函数来完成的，所以接下来我们的任务就是弄清楚 compile 函数。
 */
+
 import { noop, extend } from 'shared/util'
 import { warn as baseWarn, tip } from 'core/util/debug'
 

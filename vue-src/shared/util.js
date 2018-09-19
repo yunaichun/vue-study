@@ -291,6 +291,7 @@ export const identity = (_: any) => _
 /**
  * Generate a static keys string from compiler modules.
  */
+// 其作用是根据编译器选项的 modules 选项生成一个静态键字符串
 export function genStaticKeys (modules: Array<ModuleOptions>): string {
   return modules.reduce((keys, m) => {
     return keys.concat(m.staticKeys || [])
