@@ -60,6 +60,12 @@ export function createASTElement (
 /**
  * Convert HTML string to AST.
  */
+/**
+ * [parse 将字符串模板解析为抽象语法树(AST)]
+ * @param  {[type]} template: string          [字符串模板]
+ * @param  {[type]} options:  CompilerOptions [选项参数]
+ * @return {[type]}           [AST抽象语法树]
+ */
 export function parse (
   template: string,
   options: CompilerOptions
@@ -101,6 +107,10 @@ export function parse (
     }
   }
 
+  /*
+    parseHTML: 对模板字符串进行解析，实际上 parseHTML 函数的作用就是用来做词法分析的，
+    parse: parse函数的作用则是在词法分析的基础上做句法分析从而生成一棵 AST
+  */
   parseHTML(template, {
     warn,
     expectHTML: options.expectHTML,
