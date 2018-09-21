@@ -178,59 +178,92 @@ function decodeAttr (value, shouldDecodeNewlines) {
 }
 
 
+/**
+ * [parseHTML 词法解析]
+ * @param  {[type]} html    [要被 parse 的字符串]
+ * @param  {[type]} options [是 parser 选项]
+ * @return {[type]}         [description]
+ */
 export function parseHTML (html, options) {
+  /*  
+    在 while 循环中处理 html 字符流的时候每当遇到一个 非一元标签，都会将该开始标签 push 到该数组
+    最先遇到的结束标签，其对应的开始标签应该最后被压入 stack 栈
+  */
   const stack = []
+  /*是一个布尔值*/
   const expectHTML = options.expectHTML
+  /*用来检测一个标签是否是一元标签*/
   const isUnaryTag = options.isUnaryTag || no
+  /*用来检测一个标签是否是可以省略闭合标签的非一元标签*/
   const canBeLeftOpenTag = options.canBeLeftOpenTag || no
+  /*初始化为 0，它标识着当前字符流的读入位置*/
   let index = 0
+  /* 
+  变量 last 存储剩余还未 parse 的 html 字符串；
+  变量 lastTag 则始终存储着位于 stack 栈顶的元素
+  */
   let last, lastTag
+
+
+  /*开启一个 while 循环，循环结束的条件是 html 为空，即 html 被 parse 完毕*/
   while (html) {
     last = html
     // Make sure we're not in a plaintext content element like script/style
+    /*确保即将 parse 的内容不是在纯文本标签里 (script,style,textarea)*/
     if (!lastTag || !isPlainTextElement(lastTag)) {
+      /*textEnd 变量的值是 html 字符串中左尖括号(<)第一次出现的位置*/
       let textEnd = html.indexOf('<')
+
+
+      /*
+        当 textEnd === 0 时，说明 html 字符串的第一个字符就是左尖括号，
+        比如 html 字符串为：<div>asdf</div>，那么这个字符串的第一个字符就是左尖括号(<)
+      */
       if (textEnd === 0) {
+
         // Comment:
+        /*有可能是注释节点：以 <!-- 开头，以 --> 结尾*/
         if (comment.test(html)) {
           const commentEnd = html.indexOf('-->')
 
           if (commentEnd >= 0) {
+            /*调用同为 parser 选项的 options.comment 函数，并将注释节点的内容作为参数传递*/
             if (options.shouldKeepComment) {
+              /*最终获取到的内容是不包含注释节点的起始(<!--)和结束(-->)的*/
               options.comment(html.substring(4, commentEnd))
             }
+            /*将已经 parse 完毕的字符串剔除*/
             advance(commentEnd + 3)
+            /*由于此时 html 字符串已经是去掉了 parse 过的部分的新字符串了，所以开启下一次循环，重新开始 parse 过程*/
             continue
           }
         }
 
         // http://en.wikipedia.org/wiki/Conditional_comment#Downlevel-revealed_conditional_comment
+        /*有可能是条件注释节点：以<![ 开头，以 ]> 结尾*/
         if (conditionalComment.test(html)) {
           const conditionalEnd = html.indexOf(']>')
 
           if (conditionalEnd >= 0) {
+            /* 一、对于条件注释节点则没有相应的 parser 钩子，也就是说 Vue 模板永远都不会保留条件注释节点的内容 */
             advance(conditionalEnd + 2)
             continue
           }
         }
 
         // Doctype:
+        /*doctype 节点
+          一、如果匹配成功 doctypeMatch 的值是一个数组，数组的第一项保存着整个匹配项的字符串，即整个 Doctype 标签的字符串，否则 doctypeMatch 的值为 null
+          二、对于 Doctype 也没有提供相应的 parser 钩子，即 Vue 不会保留 Doctype 节点的内容；原则上 Vue 在编译的时候根本不会遇到 Doctype 标签
+        */
         const doctypeMatch = html.match(doctype)
         if (doctypeMatch) {
           advance(doctypeMatch[0].length)
           continue
         }
 
-        // End tag:
-        const endTagMatch = html.match(endTag)
-        if (endTagMatch) {
-          const curIndex = index
-          advance(endTagMatch[0].length)
-          parseEndTag(endTagMatch[1], curIndex, index)
-          continue
-        }
-
         // Start tag:
+        /*开始标签*/
         const startTagMatch = parseStartTag()
         if (startTagMatch) {
           handleStartTag(startTagMatch)
@@ -239,7 +272,18 @@ export function parseHTML (html, options) {
           }
           continue
         }
+
+        // End tag:
+        /*结束标签*/
+        const endTagMatch = html.match(endTag)
+        if (endTagMatch) {
+          const curIndex = index
+          advance(endTagMatch[0].length)
+          parseEndTag(endTagMatch[1], curIndex, index)
+          continue
+        }
       }
+
 
       let text, rest, next
       if (textEnd >= 0) {
@@ -260,15 +304,22 @@ export function parseHTML (html, options) {
         advance(textEnd)
       }
 
+
       if (textEnd < 0) {
         text = html
         html = ''
       }
 
+
       if (options.chars && text) {
         options.chars(text)
       }
-    } else {
+    } 
+    /*lastTag && isPlainTextElement(lastTag)
+      最近一次遇到的非一元标签是纯文本标签(即：script,style,textarea 标签)。
+      也就是说：当前我们正在处理的是纯文本标签里面的内容(script,style,textarea)。
+    */
+    else {
       let endTagLength = 0
       const stackedTag = lastTag.toLowerCase()
       const reStackedTag = reCache[stackedTag] || (reCache[stackedTag] = new RegExp('([\\s\\S]*?)(</' + stackedTag + '[^>]*>)', 'i'))
@@ -292,6 +343,9 @@ export function parseHTML (html, options) {
       parseEndTag(stackedTag, index - endTagLength, index)
     }
 
+    /*将整个字符串作为文本对待
+      如果两者相等，则说明字符串 html 在经历循环体的代码之后没有任何改变，此时会把 html 字符串作为纯文本对待
+    */
     if (html === last) {
       options.chars && options.chars(html)
       if (process.env.NODE_ENV !== 'production' && !stack.length && options.warn) {
@@ -302,27 +356,127 @@ export function parseHTML (html, options) {
   }
 
   // Clean up any remaining tags
+  /*调用 parseEndTag 函数*/
   parseEndTag()
 
+  /*将已经 parse 完毕的字符串剔除*/
   function advance (n) {
+    /*index 变量存储着字符流的读入位置，该位置是相对于原始 html 字符串的，所以每次都要更新。*/
     index += n
     html = html.substring(n)
   }
 
+  /*parseStartTag 函数用来 parse 开始标签
+    一、当成功地匹配到一个开始标签时，假设有如下 html 字符串：
+        <div v-if="isSucceed" v-for="v in map"></div>
+
+    二、则 parseStartTag 函数的返回值如下：
+        match = {
+          tagName: 'div',
+          attrs: [
+            [
+              ' v-if="isSucceed"',
+              'v-if',
+              '=',
+              'isSucceed',
+              undefined,
+              undefined
+            ],
+            [
+              ' v-for="v in map"',
+              'v-for',
+              '=',
+              'v in map',
+              undefined,
+              undefined
+            ]
+          ],
+          start: index,
+          unarySlash: undefined,
+          end: index
+        }
+
+    注意 match.start 和 match.end 是不同的。
+  */
   function parseStartTag () {
+    /*调用 html 字符串的 match 函数匹配 startTagOpen 正则*/
     const start = html.match(startTagOpen)
+    /* -----匹配tagName + start-----
+      一、如果匹配成功，那么 start 常量将是一个包含两个元素的数组：
+          第一个元素是标签的开始部分(包含 < 和 标签名称)；
+          第二个元素是捕获组捕获到的标签名称。比如有如下 html：
+          <div></div>
+
+          那么此时 start 数组为：
+          start = ['<div', 'div']
+
+      二、由于匹配成功，所以 if 语句块将被执行，首先是下面这段代码：
+          if (start) {
+            const match = {
+              tagName: start[1],
+              attrs: [],
+              start: index
+            }
+            advance(start[0].length)
+            // 省略 ...
+          }
+
+      三、定义了 match 常量，它是一个对象，初始状态下拥有三个属性：
+          1、tagName：它的值为 start[1] 即标签的名称。
+          2、attrs：它的初始值是一个空数组，我们知道，开始标签是可能拥有属性的，而这个数组就是用来存储将来被匹配到的属性。
+          3、start：它的值被设置为 index，也就是当前字符流读入位置在整个 html 字符串中的相对位置。
+    */
     if (start) {
       const match = {
         tagName: start[1],
         attrs: [],
         start: index
       }
+      /* 开始标签的开始部分就匹配完成了，所以要调用 advance 函数，参数为 start[0].length，即匹配到的字符串的长度。*/
       advance(start[0].length)
       let end, attr
+      /*  -----匹配attr-----
+        一、第一个条件是：没有匹配到开始标签的结束部分，这个条件的实现方式是使用 html 字符串的 match 方法去匹配 startTagClose 正则，并将结果保存到 end 变量中。
+            第二个条件是：匹配到了属性，实现方式是使用 html 字符串的 match 方法去匹配 attribute正则。
+
+        二、简单一句话总结这个条件的成立要素：没有匹配到开始标签的结束部分，并且匹配到了开始标签中的属性，
+            这个时候循环体将被执行，直到遇到开始标签的结束部分为止。
+
+        三、比如有如下 html 字符串：
+            <div v-for="v in map"></div>
+            那么 attr 变量的值将为：
+
+            attr = [
+              ' v-for="v in map"',
+              'v-for',
+              '=',
+              'v in map',
+              undefined,
+              undefined
+            ]
+      */
       while (!(end = html.match(startTagClose)) && (attr = html.match(attribute))) {
+        /*首先调用 advance 函数，参数为 attr[0].length 即整个属性的长度。*/
         advance(attr[0].length)
+        /*然后会将此次循环匹配到的结果 push 到前面定义的 match 对象的 attrs 数组中*/
         match.attrs.push(attr)
       }
+      /* -----匹配unarySlash + end-----
+        一、即使匹配到了开始标签的 开始部分 以及 属性部分 但是却没有匹配到开始标签的 结束部分，则说明这根本就不是一个开始标签。
+            所以只有当变量 end 存在，即匹配到了开始标签的 结束部分 时，才能说明这是一个完整的开始标签。
+
+        二、比如当 html 字符串如下时：
+            <br />
+            那么匹配到的 end 的值为：
+            end = ['/>', '/']
+
+        三、如果 html 字符串如下：
+            <div>
+            那么 end 的值将是：
+            end = ['>', undefined]
+
+        四、所以，如果 end[1] 不为 undefined，那么说明该标签是一个一元标签。
+      */
       if (end) {
         match.unarySlash = end[1]
         advance(end[0].length)
@@ -332,6 +486,7 @@ export function parseHTML (html, options) {
     }
   }
 
+  /*handleStartTag 函数用来处理 parseStartTag 的结果*/
   function handleStartTag (match) {
     const tagName = match.tagName
     const unarySlash = match.unarySlash
@@ -377,6 +532,7 @@ export function parseHTML (html, options) {
     }
   }
 
+  /*parseEndTag 函数用来 parse 结束标签*/
   function parseEndTag (tagName, start, end) {
     let pos, lowerCasedTagName
     if (start == null) start = index
