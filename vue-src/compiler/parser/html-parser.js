@@ -115,7 +115,7 @@ const doctype = /^<!DOCTYPE [^>]+>/i
 const comment = /^<!--/
 /*用来匹配条件注释节点，没有捕获组，如：<!--[if IE]>*/
 const conditionalComment = /^<!\[/
-/*标识当前宿主环境是否是老版的火狐浏览器
+/*标识当前宿主环境是否是老版的火狐浏览器[var a = 'x'.match(/x(.)?/g) ; chrom捕获的是undefined，但是老版本捕获的是'']
   首先定义了变量 IS_REGEX_CAPTURING_BROKEN 且初始值为 false，
   接着使用一个字符串 'x' 的 replace 函数用一个带有捕获组的正则进行匹配，并将捕获组捕获到的值赋值给变量 g。
 
@@ -185,7 +185,7 @@ function decodeAttr (value, shouldDecodeNewlines) {
  * @return {[type]}         [description]
  */
 export function parseHTML (html, options) {
-  /*  
+  /*stack 常量以及 lastTag 变量，其目的是将来判断是否缺少闭合标签
     在 while 循环中处理 html 字符流的时候每当遇到一个 非一元标签，都会将该开始标签 push 到该数组
     最先遇到的结束标签，其对应的开始标签应该最后被压入 stack 栈
   */
@@ -266,6 +266,7 @@ export function parseHTML (html, options) {
         /*开始标签*/
         const startTagMatch = parseStartTag()
         if (startTagMatch) {
+          /*handleStartTag 函数用来处理 parseStartTag 的结果*/
           handleStartTag(startTagMatch)
           if (shouldIgnoreFirstNewline(lastTag, html)) {
             advance(1)
@@ -274,7 +275,22 @@ export function parseHTML (html, options) {
         }
 
         // End tag:
-        /*结束标签*/
+        /*结束标签
+          一、比如有如下 html 字符串：
+              <div></div>
+              则匹配后 endTagMatch 如下：
+
+              endTagMatch = [
+                '</div>',
+                'div'
+              ]
+          二、第一个元素是整个匹配到的结束标签字符串，第二个元素是对应的标签名字。
+              如果匹配成功 if 语句块的代码将被执行，首先使用 curIndex 常量存储当前 index 的值，
+              然后调用 advance 函数，并以 endTagMatch[0].length 作为参数，
+
+              接着调用了 parseEndTag 函数对结束标签进行解析，传递给 parseEndTag 函数的三个参数分别是：
+              标签名、结束标签在 html 字符串中起始、结束的位置，最后调用 continue 语句结束此次循环。
+        */
         const endTagMatch = html.match(endTag)
         if (endTagMatch) {
           const curIndex = index
@@ -488,7 +504,9 @@ export function parseHTML (html, options) {
 
   /*handleStartTag 函数用来处理 parseStartTag 的结果*/
   function handleStartTag (match) {
+    /*开始标签的标签名*/
     const tagName = match.tagName
+    /*值为 '/' 或 undefined*/
     const unarySlash = match.unarySlash
 
     if (expectHTML) {
@@ -500,21 +518,46 @@ export function parseHTML (html, options) {
       }
     }
 
+    /* 是一个布尔值，当它为真时代表着标签是一元标签，否则是二元标签
+      简单的说 isUnaryTag 函数能够判断标准 HTML 中规定的那些一元标签，
+      但是仅仅使用这一个判断条件是不够的，因为在 Vue 中我们免不了会写组件，
+      而组件又是以自定义标签的形式存在的，比如：
+      <my-component />
+    */
     const unary = isUnaryTag(tagName) || !!unarySlash
-
+    /*存储 match.attrs 数组的长度*/
     const l = match.attrs.length
+    /*是一个与 match.attrs 数组长度相等的数组*/
     const attrs = new Array(l)
+    /*
+      for 循环的作用是：格式化 match.attrs 数组，并将格式化后的数据存储到常量 attrs 中。
+      格式化包括两部分，
+      第一：格式化后的数据只包含 name 和 value 两个字段，其中 name 是属性名，value 是属性的值。
+      第二：对属性值进行 html 实体的解码。
+    */
     for (let i = 0; i < l; i++) {
+      /*值是每个属性的解析结果，即 match.attrs 数组中的元素对象*/
       const args = match.attrs[i]
       // hackish work around FF bug https://bugzilla.mozilla.org/show_bug.cgi?id=369778
+      /* var a = 'x'.match(/x(.)?/g) ; chrom捕获的是undefined，但是老版本捕获的是''
+        是用来判断老版本火狐浏览器的一个 bug 的，
+        即当捕获组匹配不到值时那么捕获组对应变量的值应该是 undefined 而不是空字符串
+
+        如果发现此时捕获到的属性值为空字符串那么就手动使用 delete 操作符将其删除
+      */
       if (IS_REGEX_CAPTURING_BROKEN && args[0].indexOf('""') === -1) {
         if (args[3] === '') { delete args[3] }
         if (args[4] === '') { delete args[4] }
         if (args[5] === '') { delete args[5] }
       }
+      /*
+        数组的第 4、5、6 项其中之一可能会包含属性值，所以常量 value 中就保存着最终的属性值，
+        如果第 4、5、6 项都没有获取到属性值，那么属性值将被设置为一个空字符串：''
+      */
       const value = args[3] || args[4] || args[5] || ''
       attrs[i] = {
         name: args[1],
+        /*decodeAttr 函数的作用是对属性值中所包含的 html 实体进行解码，将其转换为实体对应的字符*/
         value: decodeAttr(
           value,
           options.shouldDecodeNewlines
@@ -522,11 +565,22 @@ export function parseHTML (html, options) {
       }
     }
 
+    /*
+      一、判断条件是当开始标签是非一元标签时才会执行，
+      二、其目的是：如果开始标签是非一元标签，则将该开始标签的信息入栈，即 push 到 stack 数组中，
+                 并将 lastTag 的值设置为该标签名。
+
+      三、stack 常量以及 lastTag 变量，其目的是将来判断是否缺少闭合标签
+    */
     if (!unary) {
       stack.push({ tag: tagName, lowerCasedTag: tagName.toLowerCase(), attrs: attrs })
       lastTag = tagName
     }
-
+    /*
+      如果 parser 选项中包含 options.start 函数，则调用之，
+      并将开始标签的名字(tagName)，格式化后的属性数组(attrs)，是否为一元标签(unary)，
+      以及开始标签在原 html 中的开始和结束位置(match.start 和 match.end) 作为参数传递
+    */
     if (options.start) {
       options.start(tagName, attrs, unary, match.start, match.end)
     }
