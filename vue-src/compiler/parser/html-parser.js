@@ -302,9 +302,18 @@ export function parseHTML (html, options) {
       }
 
 
+      /*
+        当 textEnd >= 0 时，说明 html 字符串的第一个字符是 < 但没有成功匹配标签，或第一个字符不是 < 的字符串
+        比如 html 字符串为：html = '0<1<2'
+      */
       let text, rest, next
       if (textEnd >= 0) {
+        /*截取了字符串 html 并将截取后的值赋值给 rest 变量，此时rest='<1<2'*/
         rest = html.slice(textEnd)
+        /*
+          截取后的字符串是 <1<2，依然是一个以符号 < 开头的字符串，所以这个字符串很有可能匹配成标签，
+          而 while 循环的条件保证了只有截取后的字符串不能匹配标签的情况下才会执行，这说明符号 < 存在于普通文本中。
+        */
         while (
           !endTag.test(rest) &&
           !startTagOpen.test(rest) &&
@@ -312,11 +321,21 @@ export function parseHTML (html, options) {
           !conditionalComment.test(rest)
         ) {
           // < in plain text, be forgiving and treat it as text
+          /*寻找下一个符号 < 的位置，并将位置索引存储在 next 变量中*/
           next = rest.indexOf('<', 1)
           if (next < 0) break
+          /*更新 textEnd 的值，更新后的 textEnd 的值将是第二个 < 符号的索引*/
           textEnd += next
+          /*使用新的 textEnd 对原始字符串 html 进行截取，并将新截取的字符串赋值给 rest 变量
+            如此往复直到遇到一个能够成功匹配标签的 < 符号为止，
+            或者当再也遇不到下一个 < 符号时，while 循环会 break，此时循环也会终止。
+          */
           rest = html.slice(textEnd)
         }
+        /*
+          如果字符串 html 为 0<1<2，此时 textEnd 保存着字符串中第二个 < 符号的位置索引，
+          所以当循环终止时变量 text 的值将是 0<1
+        */
         text = html.substring(0, textEnd)
         advance(textEnd)
       }
@@ -328,6 +347,11 @@ export function parseHTML (html, options) {
       }
 
 
+      /* 
+        如果字符串 html 为 0<1<2，我们知道此时 textEnd 保存着字符串中第二个 < 符号的位置索引，
+        所以当循环终止时变量 text 的值将是 0<1，此时 text 的值为字符串 0<1，
+        所以这部分字符串将被作为普通字符串处理，如果 options.chars 存在，则会调用该钩子函数并将字符串传递过去。
+      */
       if (options.chars && text) {
         options.chars(text)
       }
@@ -362,9 +386,27 @@ export function parseHTML (html, options) {
 
     /*将整个字符串作为文本对待
       如果两者相等，则说明字符串 html 在经历循环体的代码之后没有任何改变，此时会把 html 字符串作为纯文本对待
+
+      一、0<1<2, 剩余的字符串 <2 呢？这部分字符串将会在下一次整体的 while 循环处理，
+          此时由于 html 字符串的值将被更新为 <2，第一个字符为 <，所以该字符的索引为 0，
+          这时既会匹配 textEnd 等于 0 的情况，也会匹配 textEnd 大于等于 0 的情况，
+          但是由于字符串 <2 既不能匹配标签，也不会被 textEnd 大于等于 0 的 if 语句块处理，所以代码最终会来到这里：
+
+      二、由于字符串 html (它的值为 <2)没有被处理，
+          所以当程序运行到如上这段代码时，条件 html === last 将会成立，
+          所以如上这段 if 语句块的代码将被执行，可以看到在 if 语句块内，
+          执行调用了 options.chars 并将整个 html 字符串作为普通字符串处理，
+          换句话说最终字符串 <2 也会作为普通字符串处理。
     */
     if (html === last) {
       options.chars && options.chars(html)
+      /*
+        stack 栈为空代表着标签被处理完毕了，但此时仍然有剩余的字符串未处理，
+        举例子假设 html 字符串为：<div></div><a，
+        在解析这个字符串时首先会成功解析 div 的开始标签，此时 stack 栈中将存有 div 的开始标签，
+        接着会成功解析 div 的结束标签，此时 stack 栈会被清空，
+        接着会解析剩余的字符串 <a，此时由于 stack 栈被清空了，所以将满足上面 if 语句的判断条件。
+      */
       if (process.env.NODE_ENV !== 'production' && !stack.length && options.warn) {
         options.warn(`Mal-formatted tag at end of template: "${html}"`)
       }
