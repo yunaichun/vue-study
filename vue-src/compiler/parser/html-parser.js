@@ -15,6 +15,7 @@
 
 
 import { makeMap, no } from 'shared/util'
+/*makeMap生成的函数，意思是不能是 段落式内容(Phrasing content) 模型标签*/
 import { isNonPhrasingTag } from 'web/compiler/util'
 
 
@@ -510,9 +511,34 @@ export function parseHTML (html, options) {
     const unarySlash = match.unarySlash
 
     if (expectHTML) {
+      /* 开始标签是 p 标签，并且 p 标签内容标签不是 段落式内容(Phrasing content) 模型
+        一、意思是最近一次遇到的开始标签是 p 标签，并且当前正在解析的开始标签必须不能是 段落式内容(Phrasing content) 模型，
+            这时候 if 语句块的代码才会执行，即调用 parseEndTag(lastTag)。
+        二、首先每一个 html 元素都拥有一个或多个内容模型(content model)，
+            其中 p 标签本身的内容模型是 流式内容(Flow content)，
+            并且 p 标签的特性是只允许包含 段落式内容(Phrasing content)。所以条件成立的情况如下：
+            <p><h2></h2></p>
+        三、1、在解析上面这段 html 字符串的时候，首先遇到 p 标签的开始标签，此时 lastTag 被设置为 p，
+               紧接着会遇到 h2 标签的开始标签，由于 h2 标签的内容模型属于非 段落式内容(Phrasing content) 模型，
+               所以会立即调用 parseEndTag(lastTag) 函数闭合 p 标签，
+               此时由于强行插入了 </p> 标签，所以解析后的字符串将变为如下内容：
+               <p></p><h2></h2></p>
+            2、接着，继续解析该字符串，会遇到 <h2></h2> 标签并正常解析之，
+            3、最后解析器会遇到一个单独的 p 标签的结束标签，即：</p>。
+            4、这个时候就回到了我们前面讲过的，当解析器遇到 p 标签或者 br 标签的结束标签时会补全他们，
+               最终 <p><h2></h2></p> 这段 html 字符串将被解析为：<p></p><h2></h2><p></p>
+      */
       if (lastTag === 'p' && isNonPhrasingTag(tagName)) {
         parseEndTag(lastTag)
       }
+      /*检测到一个标签是可以省略闭合标签的非一元标签，并且与上一次解析到的开始标签相同
+        一、当前正在解析的标签是一个可以省略结束标签的标签，并且与上一次解析到的开始标签相同，如下：
+            <p>one
+            <p>two
+        二、p 标签是可以省略结束标签的标签，所以当解析到一个 p 标签的开始标签并且下一次遇到的标签也是 p 标签的开始标签时，会立即关闭第二个 p 标签。
+            即调用：parseEndTag(tagName) 函数，
+            然后由于第一个 p 标签缺少闭合标签所以会 Vue 会给你一个警告。
+      */
       if (canBeLeftOpenTag(tagName) && lastTag === tagName) {
         parseEndTag(tagName)
       }
@@ -565,12 +591,20 @@ export function parseHTML (html, options) {
       }
     }
 
-    /*
-      一、判断条件是当开始标签是非一元标签时才会执行，
-      二、其目的是：如果开始标签是非一元标签，则将该开始标签的信息入栈，即 push 到 stack 数组中，
-                 并将 lastTag 的值设置为该标签名。
-
-      三、stack 常量以及 lastTag 变量，其目的是将来判断是否缺少闭合标签
+    /* 
+      一、原理：最先遇到的结束标签，其对应的开始标签应该最后被压入 stack 栈
+      二、例子：假设我们有如下 html 字符串：
+          <article><section><div></section></article>
+          stack 栈顶的元素应该是 section，但是我们发现事实上 stack 栈顶并不是 section 而是 div，
+          这说明 div 元素缺少闭合标签。
+          这就是检测 html 字符串中是否缺少闭合标签的原理
+      三、变量 stack存储的是所有开始标签, 变量 lastTag 则始终存储着位于 stack 栈顶的元素
+      
+      注意：
+      1、判断条件是当开始标签是非一元标签时才会执行，
+      2、其目的是：如果开始标签是非一元标签，则将该开始标签的信息入栈，即 push 到 stack 数组中，
+                     并将 lastTag 的值设置为该标签名。
+      3、stack 常量以及 lastTag 变量，其目的是将来判断是否缺少闭合标签
     */
     if (!unary) {
       stack.push({ tag: tagName, lowerCasedTag: tagName.toLowerCase(), attrs: attrs })
@@ -586,28 +620,75 @@ export function parseHTML (html, options) {
     }
   }
 
-  /*parseEndTag 函数用来 parse 结束标签*/
+  /*parseEndTag 函数用来 parse 结束标签
+    一、parseEndTag 函数主要有三个作用：
+      1、检测是否缺少闭合标签(pos = 1): <article><section><div></section></article>
+                                         <article><section></div></section></article>
+      2、解析 </br> 与 </p> 标签，与浏览器的行为相同(pos = -1):  <body></br></p></body>
+      3、处理 stack 栈中剩余的标签: <article><section></section></article><div>
+                                     在解析这段 html 字符串的时候，首先会遇到两个非一元标签的开始标签，
+                                     即 <article> 和 <section>，并将这两个标签 push 到 stack 栈中。
+                                     然后会依次遇到与 stack 栈中起始标签相对应的结束标签 </section> 和 </article>，
+                                     在解析完这两个结束标签之后 stack 栈应该是空栈!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+                                     紧接着又遇到一个开始标签，也就是 <div> 标签，这是一个非一元标签的开始标签，
+                                     所以会将该标签 push 到 stack 栈中。这样上面这段 html 字符串就解析完成了，
+                                     此时stack 栈非空!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                                     stack 栈中还残留最后遇到的 <div> 开始标签没有被处理，
+                                     所以 parseEndTag 函数的另外一个作用就是处理 stack 栈中剩余未被处理的标签。
+
+    二、parseEndTag 函数的使用方式有三种：
+      1、第一种是处理普通的结束标签，此时 三个参数都传递
+      2、第二种是只传递第一个参数：
+         parseEndTag(lastTag)
+         只传递一个参数的情况我们前面遇到过，就是在 handleStartTag 函数中
+      3、第三种是 不传递参数，当不传递参数的时候，就是我们讲过的，这是在处理 stack 栈剩余未处理的标签。
+  */
   function parseEndTag (tagName, start, end) {
+    /*变量 pos 会在后面用于判断 html 字符串是否缺少结束标签，lowerCasedTagName 变量用来存储 tagName 的小写版*/
     let pos, lowerCasedTagName
+    /*
+      当 start 和 end 不存在时，将这两个变量的值设置为当前字符流的读入位置，即 index。
+      所以当我们看到这两个 if 语句时：parseEndTag 函数的第二个参数和第三个参数都是可选的，即不传。
+    */
     if (start == null) start = index
     if (end == null) end = index
-
+    /*如果存在 tagName 则将其转为小写并保存到之前定义的 lowerCasedTagName 变量中。*/
     if (tagName) {
       lowerCasedTagName = tagName.toLowerCase()
     }
 
     // Find the closest opened tag of the same type
+    /* 寻找当前解析的结束标签所对应的开始标签在 stack 栈中的位置   
+       一、pos 变量会被用来判断是否有元素缺少闭合标签
+       二、<article><section><div></section></article>
+           pos = 1,
+           stack索引:0,1,2;stack 数组中存在索引大于 pos 的元素
+       三、<article><section></div></section></article>
+           对于 </div> 浏览器会将其忽略。所以 Vue 的 parser 与浏览器的行为是一致的。
+           此时pos = -1
+    */
     if (tagName) {
+      /*遍历stack，就是遍历开始标签元素*/
       for (pos = stack.length - 1; pos >= 0; pos--) {
         if (stack[pos].lowerCasedTag === lowerCasedTagName) {
           break
         }
       }
-    } else {
+    }
+    /* 如果 tagName 不存在，那么 pos 将始终等于 0 
+       一、<article><section></section></article><div>
+    */
+    else {
       // If no tag name is provided, clean shop
+      /*由于 pos 为 0，所以 i >= pos 始终成立，这个时候 stack 栈中如果有剩余未处理的标签，则会逐个警告缺少闭合标签，并调用 options.end 将其闭合。*/
       pos = 0
     }
 
+    /*如果发现 stack 数组中存在索引大于 pos 的元素，那么该元素一定是缺少闭合标签的
+      1.这个时候如果是在非生产环境那么 Vue 便会打印一句警告，告诉你缺少闭合标签。
+      2.随后会调用 options.end(stack[i].tag, start, end) 立即将其闭合，这是为了保证解析结果的正确性。
+    */
     if (pos >= 0) {
       // Close all the open elements, up the stack
       for (let i = stack.length - 1; i >= pos; i--) {
@@ -623,15 +704,19 @@ export function parseHTML (html, options) {
           options.end(stack[i].tag, start, end)
         }
       }
-
       // Remove the open elements from the stack
+      /*最后更新 stack 栈以及 lastTag*/
       stack.length = pos
       lastTag = pos && stack[pos - 1].tag
-    } else if (lowerCasedTagName === 'br') {
+    } 
+    /*只写了结束br标签而没写开始br标签: </br> 会将其解析为正常的 <br> 标签*/
+    else if (lowerCasedTagName === 'br') {
       if (options.start) {
         options.start(tagName, [], true, start, end)
       }
-    } else if (lowerCasedTagName === 'p') {
+    }
+    /*只写了结束p标签而没写开始p标签: </p> 标签也会正常解析为 <p></p>*/
+    else if (lowerCasedTagName === 'p') {
       if (options.start) {
         options.start(tagName, [], false, start, end)
       }
