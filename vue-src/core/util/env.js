@@ -9,8 +9,8 @@ export const hasProto = '__proto__' in {}
 
 // Browser environment sniffing
 export const inBrowser = typeof window !== 'undefined' // 判断当前环境是否是浏览器环境
-export const UA = inBrowser && window.navigator.userAgent.toLowerCase()
-export const isIE = UA && /msie|trident/.test(UA)
+export const UA = inBrowser && window.navigator.userAgent.toLowerCase() // 判断当前环境是否是IE浏览器环境
+export const isIE = UA && /msie|trident/.test(UA) // 判断当前环境是否是IE浏览器环境
 export const isIE9 = UA && UA.indexOf('msie 9.0') > 0
 export const isEdge = UA && UA.indexOf('edge/') > 0
 export const isAndroid = UA && UA.indexOf('android') > 0

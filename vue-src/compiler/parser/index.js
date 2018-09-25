@@ -277,24 +277,87 @@ export function parse (
     canBeLeftOpenTag: options.canBeLeftOpenTag,
     shouldDecodeNewlines: options.shouldDecodeNewlines,
     shouldKeepComment: options.comments,
-    /*钩子函数*/
+    /**
+     * [start 在解析 html 字符串时每次遇到 开始标签 时就会调用该函数]
+     * @param  {[type]} tag   [标签名字 tag，该，以及代表着该标签是否是一元标签的标识 unary]
+     * @param  {[type]} attrs [标签的属性数组 attrs]
+     * @param  {[type]} unary [标签是否是一元标签的标识 unary]
+     * @return {[type]}       [description]
+     */
+     /* 
+      总结下 start 钩子函数的内容，以使得我们的思路更加清晰：
+      1、start 钩子函数是当解析 html 字符串遇到开始标签时被调用的。
+      2、模板中禁止使用 <style> 标签和那些没有指定 type 属性或 type 属性值为 text/javascript 的 <script> 标签。
+      3、在 start 钩子函数中会调用前置处理函数，这些前置处理函数都放在 preTransforms 数组中，这么做的目的是为不同平台提供对应平台下的解析工作。
+      4、前置处理函数执行完之后会调用一系列 process* 函数继续对元素描述对象进行加工。
+      5、通过判断 root 是否存在来判断当前解析的元素是否为根元素。
+      6、slot 标签和 template 标签不能作为根元素，并且根元素不能使用 v-for 指令。
+      7、可以定义多个根元素，但必须使用 v-if、v-else-if 以及 v-else 保证有且仅有一个根元素被渲染。
+      8、构建 AST 并建立父子级关系是在 start 钩子函数中完成的，每当遇到非一元标签，会把它存到 currentParent 变量中，当解析该标签的子节点时通过访问 currentParent 变量获取父级元素。
+      9、如果一个元素使用了 v-else-if 或 v-else 指令，则该元素不会作为子节点，而是会被添加到相符的使用了 v-if 指令的元素描述对象的 ifConditions 数组中。
+      10、如果一个元素使用了 slot-scope 特性，则该元素也不会作为子节点，它会被添加到父级元素描述对象的 scopedSlots 属性中。
+      11、对于没有使用条件指令或 slot-scope 特性的元素，会正常建立父子级关系。
+    */
     start (tag, attrs, unary) {
       // check namespace.
       // inherit parent ns if there is one
+      /*
+        一、ns 常量，它的值为标签的命名空间；currentParent 变量为当前元素的父级元素描述对象，
+        二、如果当前元素存在父级并且父级元素存在命名空间，则使用父级的命名空间作为当前元素的命名空间。
+            如果父级元素不存在或父级元素没有命名空间，那么会通过调用 platformGetTagNamespace(tag) 函数获取当前元素的命名空间。
+        三、举个例子，假设我们解析的模板字符串为：
+            <svg width="100%" height="100%" version="1.1" xmlns="http://www.w3.org/2000/svg">
+              <rect x="20" y="20" width="250" height="250" style="fill:blue;"/>
+            </svg>
+            如上是用来画一个蓝色矩形的 svg 代码，其中我们使用了两个标签：svg 标签和 rect 标签，
+            当解析如上代码时首先会遇到 svg 标签的开始标签，由于 svg 标签没有父级元素，
+            所以会通过 platformGetTagNamespace(tag) 获取 svg 标签的命名空间，最终得到 svg 字符串：
+            platformGetTagNamespace('svg')  // 'svg'
+
+            下一个遇到的开始标签则是 rect 标签的开始标签，由于 rect 标签存在父级元素(svg 标签)，所以此时 rect 标签会使用它父级元素的命名空间作为自己的命名空间。
+
+        四、platformGetTagNamespace 函数只会获取 svg 和 math 这两个标签的命名空间，
+            但这两个标签的所有子标签都会继承它们两个的命名空间。对于其他标签则不存在命名空间。
+      */
       const ns = (currentParent && currentParent.ns) || platformGetTagNamespace(tag)
 
       // handle IE svg bug
       /* istanbul ignore if */
+      /*
+        一、IE 11 的bug：该问题是 svg 标签中渲染多余的属性，如下 svg 标签：
+            <svg xmlns:feature="http://www.openplans.org/topp"></svg>
+            被渲染为：
+            <svg  xmlns:NS1=""  NS1:xmlns:feature="http://www.openplans.org/topp"></svg>
+        二、标签中多了 'xmlns:NS1="" NS1:' 这段字符串，解决办法也很简单，将整个多余的字符串去掉即可。
+      */ 
       if (isIE && ns === 'svg') {
         attrs = guardIESVGBug(attrs)
       }
 
-      /*定义 element 常量，它就是元素节点的描述对象*/
+      /*定义 element 常量，它就是元素节点的描述对象
+        一、为当前元素创建了描述对象，当前标签的元素描述对象赋值给 element 变量。
+            紧接着检查当前元素是否存在命名空间 ns，如果存在则在元素对象上添加 ns 属性，其值为命名空间的值。
+
+        三、如果当前解析的开始标签为 svg 标签或者 math 标签或者它们两个的子节点标签，
+            都将会比其他 html 标签的元素描述对象多出一个 ns 属性，且该属性标识了该标签的命名空间。
+      */
       let element: ASTElement = createASTElement(tag, attrs, currentParent)
       if (ns) {
         element.ns = ns
       }
 
+      /*
+        一、该 if 语句用来判断非服务端渲染情况下，当前元素是否是禁止在模板中使用的标签。其中使用 isForbiddenTag(element) 函数检查当前元素是否为被禁止的标签，
+            什么是被禁止的标签呢？<style> 标签和 <script> 都被认为是禁止的标签，
+            因为 Vue 认为模板应该只负责做数据状态到 UI 的映射，而不应该存在引起副作用的代码，如果你的模板中存在 <script> 标签，那么该标签内的代码很容易引起副作用。
+
+        二、但有一种情况例外，比如其中一种定义模板的方式为：
+            <script type="text/x-template" id="hello-world-template">
+              <p>Hello hello hello</p>
+            </script>
+            把模板放到 <script> 元素中，并在 <script> 元素上添加 type="text/x-template" 属性。
+            可以看到 Vue 并非禁止了所有的 <script> 元素，这在 isForbiddenTag 函数中是有体现的
+      */
       if (isForbiddenTag(element) && !isServerRendering()) {
         element.forbidden = true
         process.env.NODE_ENV !== 'production' && warn(
@@ -306,6 +369,7 @@ export function parse (
 
       // apply pre-transforms
       for (let i = 0; i < preTransforms.length; i++) {
+        /*直接调用preTransforms函数*/
         element = preTransforms[i](element, options) || element
       }
 
@@ -329,14 +393,33 @@ export function parse (
         processElement(element, options)
       }
 
+      /**
+       * [checkRootConstraints 检测模板根元素是否符合要求]
+       * @param  {[type]} el [当前元素]
+       * @return {[type]}    [description]
+       */
       function checkRootConstraints (el) {
         if (process.env.NODE_ENV !== 'production') {
+          /*
+            首先模板必须有且仅有一个被渲染的根元素，第二不能使用 slot 标签和 template 标签作为模板的根元素，
+            一、第一点为什么模板必须有且仅有一个被渲染的根元素，我们会在代码生成的部分为大家讲解，
+            二、第二点为什么不能使用 slot 和 template 标签作为模板根元素，
+                1、这是因为 slot 作为插槽，它的内容是由外界决定的，而插槽的内容很有可能渲染多个节点，
+                2、template 元素的内容虽然不是由外界决定的，但它本身作为抽象组件是不会渲染任何内容到页面的，而其又可能包含多个子节点，所以也不允许使用 template 标签作为根节点。
+                总之这些限制都是出于 必须有且仅有一个根元素 考虑的。
+          */
           if (el.tag === 'slot' || el.tag === 'template') {
             warnOnce(
               `Cannot use <${el.tag}> as component root element because it may ` +
               'contain multiple nodes.'
             )
           }
+          /*
+            一、接着又判断当前元素是否使用了 v-for 指令，因为 v-for 指令会渲染多个节点所以根元素是不允许使用 v-for 指令的。
+            二、另外大家注意在 checkRootConstraints 函数内部打印警告信息时使用的是 warnOnce 函数而非 warn 函数，
+                也就是说如果第一个 warnOnce 函数执行并打印了警告信息那么第二个 warnOnce 函数就不会再次打印警告信息，
+                这么做的目的是每次只提示一个编译错误给用户，避免多次打印不同错误给用户造成迷惑，这是出于对开发者解决问题友好的考虑。
+          */
           if (el.attrsMap.hasOwnProperty('v-for')) {
             warnOnce(
               'Cannot use v-for on stateful component root element because ' +
@@ -351,15 +434,33 @@ export function parse (
       if (!root) {
         root = element
         checkRootConstraints(root)
-      } else if (!stack.length) {
+      } 
+      /* 当解析完一段HTML后，stack为空
+        一、每当遇到一个非一元标签时就会将该标签的描述对象放进数组，并且每当遇到一个结束标签时都会将该标签的描述对象从 stack 数组中拿掉，
+        二、那也就是说在只有一个根元素的情况下，正常解析完成一段 html 代码后 stack 数组应该为空，
+            或者换个说法，即当 stack 数组被清空后则说明整个模板字符串已经解析完毕了，
+        三、但此时 start 钩子函数仍然被调用了，这说明模板中存在多个根元素，这时 else if 语句块内的代码将被执行
+      */
+      else if (!stack.length) {
         // allow root elements with v-if, v-else-if and v-else
+        /*
+          一、元素对象中的 .if 属性、.elseif 属性以及 .else 属性都是哪里来的，它们是在通过 processIf 函数处理元素描述对象时，
+              如果发现元素的属性中有 v-if 或 v-else-if 或 v-else，则会在元素描述对象上添加相应的属性作为标识。
+          二、root 为第一个根元素的描述对象，root.if保证了第一个定义的根元素是使用了 v-if 指令的
+              element 为当前元素描述对象，即非第一个根元素的描述对象，
+              currentParent = element // 存储当前节点
+              stack = [currentParent,……] // 从根元素开始存储非一元标签
+        */
         if (root.if && (element.elseif || element.else)) {
+          /*检查当前元素是否符合作为根元素的要求*/
           checkRootConstraints(element)
-          addIfCondition(root, {
-            exp: element.elseif,
-            block: element
+          addIfCondition(root, { /* root为第一个参数为第一个根元素描述对象*/
+            exp: element.elseif,/* exp 为当前元素描述对象的 element.elseif 的值*/
+            block: element /*block 是当前元素描述对象*/
           })
-        } else if (process.env.NODE_ENV !== 'production') {
+        }
+        /*一定是超出两个根节点*/
+        else if (process.env.NODE_ENV !== 'production') {
           warnOnce(
             `Component template should contain exactly one root element. ` +
             `If you are using v-if on multiple elements, ` +
@@ -367,31 +468,52 @@ export function parse (
           )
         }
       }
+
+      /*当前元素存在父级(currentParent存在)，并且当前元素不是被禁止的元素*/
       if (currentParent && !element.forbidden) {
+        /*如果一个标签使用 v-else-if 或 v-else 指令：
+          1、那么该元素的描述对象实际上会被添加到对应的 v-if 元素描述对象的 ifConditions 数组中，
+          2、而非作为一个独立的子节点
+        */
         if (element.elseif || element.else) {
           processIfConditions(element, currentParent)
-        } else if (element.slotScope) { // scoped slot
+        }
+        /*如果一个元素使用了 slot-scope 特性：
+          1、该元素的描述对象会被添加到父级元素的 scopedSlots 对象下，
+             也就是说使用了 slot-scope 特性的元素与使用了 v-else-if 或 v-else 指令的元素一样，他们都不会作为父级元素的子节点，
+          2、对于使用了 slot-scope 特性的元素来讲它们将被添加到父级元素描述对象的 scopedSlots 对象下。
+        */
+        else if (element.slotScope) { // scoped slot
           currentParent.plain = false
           const name = element.slotTarget || '"default"'
           ;(currentParent.scopedSlots || (currentParent.scopedSlots = {}))[name] = element
-        } else {
+        }
+        /*建立元素描述对象间的父子级关系：
+            1、把当前元素描述对象添加到父级元素描述对象(currentParent)的 children 数组中，
+            2、同时将当前元素对象的 parent 属性指向父级元素对象，
+          */
+        else {
           currentParent.children.push(element)
           element.parent = currentParent
         }
       }
 
-      /*当一个元素为非一元标签时，会设置 currentParent 为该元素的描述对象*/
+      /*当一个元素为非一元标签*/
       if (!unary) {
+        /*将 currentParent 变量的值更新为当前元素的描述对象*/
         currentParent = element
         /*
-          一、将 currentParent 添加到 stack 数组
-          二、目的是在end钩子函数中每当遇到一个非一元标签的结束标签时，都会回退 currentParent 变量的值为之前的值，
-              这样我们就修正了当前正在解析的元素的父级元素。
+          一、将 currentParent 添加到 stack 数组，currentParent 始终存储的是 stack 栈顶的元素，即当前解析元素的父级
+          二、目的是在end钩子函数中每当遇到一个非一元标签的结束标签时，
+              都会回退 currentParent 变量的值为之前的值，将stack数组从栈顶取出来一个，这样我们就修正了当前正在解析的元素的父级元素。
         */
         stack.push(element)
-      } else {
+      }
+      /*当一个元素为一元标签时，闭合标签*/
+      else {
         endPre(element)
       }
+
       // apply post-transforms
       for (let i = 0; i < postTransforms.length; i++) {
         postTransforms[i](element, options)
@@ -508,6 +630,231 @@ function makeAttrsMap (attrs: Array<Object>): Object {
   return map
 }
 
+/*
+  一、ieNSBug 正则用来匹配那些以字符串 xmlns:NS 再加一个或多个数字组成的字符串开头的属性名，如：
+      <svg xmlns:NS1=""></svg>
+  二、如上标签的 xmlns:NS1 属性将会被 ieNSBug 正则匹配成功。
+*/
+const ieNSBug = /^xmlns:NS\d+/
+/*
+  一、ieNSPrefix来匹配那些以字符串 NS 再加一个或多个数字以及字符 : 所组成的字符串开头的属性名，如：
+      <svg NS1:xmlns:feature="http://www.openplans.org/topp"></svg>
+  二、如上标签的 NS1:xmlns:feature 属性将被 ieNSPrefix 正则匹配成功。
+*/
+const ieNSPrefix = /^NS\d+:/
+/* istanbul ignore next */
+/**
+ * [guardIESVGBug IE 11 的bug：该问题是 svg 标签中渲染多余的属性]
+ * @param  {[type]} attrs [词法解析出的属性]
+ * @return {[type]}       [description]
+ */
+function guardIESVGBug (attrs) {
+  /*
+    一、IE 11 的bug：该问题是 svg 标签中渲染多余的属性，如下 svg 标签：
+        <svg xmlns:feature="http://www.openplans.org/topp"></svg>
+        被渲染为：
+        <svg  xmlns:NS1=""  NS1:xmlns:feature="http://www.openplans.org/topp"></svg>
+
+    二、在解析如上标签时，传递给 start 钩子函数的标签属性数组 attrs 为：
+        attrs = [
+          {
+            name: 'xmlns:NS1',
+            value: ''
+          },
+          {
+            name: 'NS1:xmlns:feature',
+            value: 'http://www.openplans.org/topp'
+          }
+        ]
+    三、在经过 guardIESVGBug 函数处理之后，属性数组中的第一项因为属性名满足 ieNSBug 正则被剔除，
+        第二项属性名字 NS1:xmlns:feature 将被变为 xmlns:feature，所以 guardIESVGBug 返回的属性数组为：
+        attrs = [
+          {
+            name: 'xmlns:feature',
+            value: 'http://www.openplans.org/topp'
+          }
+        ]
+
+  */
+  const res = []
+  for (let i = 0; i < attrs.length; i++) {
+    const attr = attrs[i]
+    if (!ieNSBug.test(attr.name)) {
+      attr.name = attr.name.replace(ieNSPrefix, '')
+      res.push(attr)
+    }
+  }
+  return res
+}
+
+/**
+ * [isForbiddenTag 检查当前元素是否为被禁止的标签]
+ * @param  {[type]}  el [当前元素]
+ * @return {Boolean}    [description]
+ */
+function isForbiddenTag (el): boolean {
+  /*1、没有指定 type 属性；2、虽然指定了 type 属性但其值为 text/javascript 的 <script> 标签被认为是被禁止的
+    <script type="text/x-template" id="hello-world-template">
+      <p>Hello hello hello</p>
+    </script>
+  */
+  return (
+    el.tag === 'style' ||
+    (el.tag === 'script' && (
+      !el.attrsMap.type ||
+      el.attrsMap.type === 'text/javascript'
+    ))
+  )
+}
+
+/**
+ * [addIfCondition description]
+ * @param {[type]} el:        ASTElement     [第一个参数为元素的描述对象（传root指的是第一个根元素描述对象）]
+ * @param {[type]} condition: ASTIfCondition [第二个参数的类型为 ASTIfCondition，说白了也是一个对象]
+ */
+export function addIfCondition (el: ASTElement, condition: ASTIfCondition) {
+  /* 
+   
+  */
+  /*首先检查根元素描述对象是否有 el.ifConditions 属性，如果没有则创建该属性同时初始化为空数组*/
+  if (!el.ifConditions) {
+    el.ifConditions = []
+  }
+  /*
+    一、接着将 ASTIfCondition 类型的对象推进到该数组中，实际上该函数是一个通用的函数，
+        不仅仅用在根元素中，它用在任何由 v-if、v-else-if 以及 v-else 组成的条件渲染的模板中。
+
+    二、通过如上分析我们可以发现：具有 v-else-if 或 v-else 属性的元素的描述对象会被添加到具有 v-if 属性的元素描述对象的 .ifConnditions 数组中。
+        1、举个例子，如下模板：
+          <div v-if="a"></div>
+          <p v-else-if="b"></p>
+          <span v-else></span>
+        2、解析后生成的 AST 如下(简化版)：
+          {
+            type: 1,
+            tag: 'div',
+            ifConditions: [
+              {
+                exp: 'b',
+                block: { type: 1, tag: 'p', ……} // block 是当前元素描述对象
+              },
+              {
+                exp: undefined,
+                block: { type: 1, tag: 'span', …… } // block 是当前元素描述对象
+              }
+            ]
+            // 省略其他属性...
+          }
+        3、其实如上描述是不准确的，后面我们会发现带有 v-if 属性的元素也会将自身的元素描述对象添加到自身的 .ifConditions 数组中，即：
+          {
+            type: 1,
+            tag: 'div',
+            ifConditions: [
+              {
+                exp: 'a',
+                block: { type: 1, tag: 'div', …… } // block 是当前元素描述对象
+              },
+              {
+                exp: 'b',
+                block: { type: 1, tag: 'p', …… } // block 是当前元素描述对象
+              },
+              {
+                exp: undefined,
+                block: { type: 1, tag: 'span', …… } // block 是当前元素描述对象
+              }
+            ]
+            // 省略其他属性...
+          }
+  */
+  el.ifConditions.push(condition)
+}
+
+/**
+ * [processIfConditions 将 v-else-if 或 v-else 指令的元素对象添加到 v-if 指令的元素描述对象的 ifConditions 数组中]
+ * @param  {[type]} el     [当前元素]
+ * @param  {[type]} parent [父级元素]
+ * @return {[type]}        [description]
+ */
+function processIfConditions (el, parent) {
+  /*找到当前元素的前一个元素描述对象*/
+  const prev = findPrevElement(parent.children)
+  /*判断当前元素的前一个元素是否使用了 v-if 指令:
+    对于使用了 v-else-if 或 v-else 指令的元素来讲，他们的前一个元素必然需要使用相符的 v-if 指令才行。
+    1、如果前一个元素确实使用了 v-if 指令，那么则会调用 addIfCondition 函数将当前元素描述对象添加到前一个元素的 ifConditions 数组中。
+    2、如果前一个元素没有使用 v-if 指令，那么此时将会进入 else...if 条件语句的判断，即如果是非生产环境下，会打印警告信息提示开发者没有相符的使用了 v-if 指令的元素。
+    
+    由此可知 当一个元素使用了 v-else-if 或 v-else 指令时：
+    它们是不会作为父级元素子节点的，而是会被添加到相符的使用了 v-if 指令的元素描述对象的 ifConditions 数组中。
+  */
+  if (prev && prev.if) {
+    addIfCondition(prev, {
+      exp: el.elseif,
+      block: el
+    })
+  } else if (process.env.NODE_ENV !== 'production') {
+    warn(
+      `v-${el.elseif ? ('else-if="' + el.elseif + '"') : 'else'} ` +
+      `used on element <${el.tag}> without corresponding v-if.`
+    )
+  }
+}
+
+/**
+ * [findPrevElement 当解析器遇到一个带有 v-else-if 或 v-else 指令的元素时，找到该元素的前一个元素节点]
+ * @param  {[type]} children: Array<any>    [元素描述对象，层级相同的子节点]
+ * @return {[type]}                         [description]
+ */
+function findPrevElement (children: Array<any>): ASTElement | void {
+  let i = children.length
+  /*
+    一、假设我们解析如下 html 字符串：
+        <div>
+          <div v-if="a"></div>
+          <p v-else-if="b"></p>
+          <span v-else="c"></span>
+        </div>
+
+    二、当解析器遇到带有 v-else-if 指令的 p 标签时，那么此时它的前一个元素节点应该是带有 v-if 指令的 div 标签，如何找到该 div 标签呢？
+        由于当前正在解析的标签为 p，此时 p 标签的元素描述对象还没有被添加到父级元素描述对象的 children 数组中，
+        所以此时父级元素描述对象的 children 数组中最后一个元素节点就应该是 div 元素。注意我们说的是 最后一个元素节点，而不是 最后一个节点。
+        所以要想得到 div 标签，我们只要找到父级元素描述对象的 children 数组最后一个元素节点即可。
+
+    三、当解析器遇到带有 v-else 指令的 span 标签时，此时 span 标签的前一个 元素节点 还是 div 标签，而不是 p 标签，
+        这是因为 p 标签的元素描述对象没有被添加到父级元素描述对象的 children 数组中，而是被添加到 div 标签元素描述对象的 ifConditions 数组中了。
+        所以对于 span 标签来讲，它的前一个元素节点仍然是 div 标签。
+  */
+  while (i--) {
+    /*只有是元素节点时才会将该节点的描述对象作为返回值返回*/
+    if (children[i].type === 1) {
+      return children[i]
+    }
+    /*如果在找到元素节点之前遇到了非元素节点，那么 else 分支的代码将会被执行：*/
+    else {
+      /*
+        一、在非生产环境下如果该非元素节点的 .text 属性如果不为空，
+            则打印警告信息提示开发者这部分存在于 v-if 指令和 v-else(-if) 指令之间的内容将被忽略。
+        二、什么意思呢？举个例子：
+            <div>
+              <div v-if="a"></div>
+              aaaaa
+              <p v-else-if="b"></p>
+              bbbbb
+              <span v-else="c"></span>
+            </div>
+            如上代码中的文本 aaaaa 和 bbbbb 都将被忽略。
+      */
+      if (process.env.NODE_ENV !== 'production' && children[i].text !== ' ') {
+        warn(
+          `text "${children[i].text.trim()}" between v-if and v-else(-if) ` +
+          `will be ignored.`
+        )
+      }
+      /*非元素节点被从 children 数组中 pop 出去*/
+      children.pop()
+    }
+  }
+}
+
 function processPre (el) {
   if (getAndRemoveAttr(el, 'v-pre') != null) {
     el.pre = true
@@ -606,45 +953,6 @@ function processIf (el) {
       el.elseif = elseif
     }
   }
-}
-
-function processIfConditions (el, parent) {
-  const prev = findPrevElement(parent.children)
-  if (prev && prev.if) {
-    addIfCondition(prev, {
-      exp: el.elseif,
-      block: el
-    })
-  } else if (process.env.NODE_ENV !== 'production') {
-    warn(
-      `v-${el.elseif ? ('else-if="' + el.elseif + '"') : 'else'} ` +
-      `used on element <${el.tag}> without corresponding v-if.`
-    )
-  }
-}
-
-function findPrevElement (children: Array<any>): ASTElement | void {
-  let i = children.length
-  while (i--) {
-    if (children[i].type === 1) {
-      return children[i]
-    } else {
-      if (process.env.NODE_ENV !== 'production' && children[i].text !== ' ') {
-        warn(
-          `text "${children[i].text.trim()}" between v-if and v-else(-if) ` +
-          `will be ignored.`
-        )
-      }
-      children.pop()
-    }
-  }
-}
-
-export function addIfCondition (el: ASTElement, condition: ASTIfCondition) {
-  if (!el.ifConditions) {
-    el.ifConditions = []
-  }
-  el.ifConditions.push(condition)
 }
 
 function processOnce (el) {
@@ -803,32 +1111,6 @@ function parseModifiers (name: string): Object | void {
 // for script (e.g. type="x/template") or style, do not decode content
 function isTextTag (el): boolean {
   return el.tag === 'script' || el.tag === 'style'
-}
-
-function isForbiddenTag (el): boolean {
-  return (
-    el.tag === 'style' ||
-    (el.tag === 'script' && (
-      !el.attrsMap.type ||
-      el.attrsMap.type === 'text/javascript'
-    ))
-  )
-}
-
-const ieNSBug = /^xmlns:NS\d+/
-const ieNSPrefix = /^NS\d+:/
-
-/* istanbul ignore next */
-function guardIESVGBug (attrs) {
-  const res = []
-  for (let i = 0; i < attrs.length; i++) {
-    const attr = attrs[i]
-    if (!ieNSBug.test(attr.name)) {
-      attr.name = attr.name.replace(ieNSPrefix, '')
-      res.push(attr)
-    }
-  }
-  return res
 }
 
 function checkForAliasModel (el, value) {
