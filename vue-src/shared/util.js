@@ -151,7 +151,11 @@ export function hasOwn (obj: Object | Array<*>, key: string): boolean {
 /**
  * Create a cached version of a pure function.
  */
-// 传入函数fn，返回函数闭包
+/* 传入函数fn，返回函数闭包
+  cached 函数的作用是接收一个函数作为参数并返回一个新的函数，
+  新函数的功能与作为参数传递的函数功能相同，唯一不同的是新函数具有缓存值的功能，
+  如果一个函数在接收相同参数的情况下所返回的值总是相同的，那么 cached 函数将会为该函数提供性能提升的优势。
+*/
 export function cached<F: Function> (fn: F): F {
   const cache = Object.create(null)
   // 返回函数：参数str

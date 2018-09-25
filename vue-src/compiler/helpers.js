@@ -6,12 +6,16 @@ export function baseWarn (msg: string) {
   console.error(`[Vue compiler]: ${msg}`)
 }
 
+/**
+ * [pluckModuleFunction 作用是从第一个参数中"采摘"出函数名字与第二个参数所指定字符串相同的函数，并将它们组成一个数组；同时filter掉为undefined的选项]
+ * @type {[type]}
+ */
 export function pluckModuleFunction<F: Function> (
   modules: ?Array<Object>,
   key: string
 ): Array<F> {
   return modules
-    ? modules.map(m => m[key]).filter(_ => _)
+    ? .mamodulesp(m => m[key]).filter(_ => _)
     : []
 }
 
