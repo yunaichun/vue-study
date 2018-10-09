@@ -31,9 +31,9 @@ export const onRE = /^@|^v-on:/
 export const dirRE = /^v-|^@|^:/
 /*
   一、该正则包含三个分组：
-      1、第一个分组为 ([^]*?)，该分组是一个惰性匹配的分组，它匹配的内容为任何字符，包括换行符等。
-      2、第二个分组为 (?:in|of)，该分组用来匹配字符串 in 或者 of，并且该分组是非捕获的分组。
-      3、第三个分组为 ([^]*)，与第一个分组类似，不同的是第三个分组是非惰性匹配。同时每个分组之间都会匹配至少一个空白符 \s+。
+      1、第一个分组为 (.*?)。该分组是一个惰性匹配的分组：.* 代表除换行符之外任意字符.(http://www.cnblogs.com/hehexu/p/9198296.html)
+      2、第二个分组为 (?:in|of)。该分组是一个非捕获的分组：该分组用来匹配字符串 in 或者 of.(https://www.jianshu.com/p/5150863e7f7a)
+      3、第三个分组为 (.*)。该分组是一个非惰性匹配的分组：.* 代表除换行符之外任意字符.
   
   二、通过以上说明可知，正则 forAliasRE 用来匹配 v-for 属性的值，并捕获 in 或 of 前后的字符串。假设我们像如下这样使用 v-for：
       <div v-for="obj of list"></div>
@@ -41,7 +41,7 @@ export const dirRE = /^v-|^@|^:/
 */
 export const forAliasRE = /(.*?)\s+(?:in|of)\s+(.*)/
 /*
-  一、该正则用来匹配 forAliasRE第一个捕获组所捕获到的字符串，可以看到正则中拥有三个分组，有两个捕获的分组，
+  一、该正则用来匹配 forAliasRE第一个捕获组所捕获到的字符串，可以看到正则中拥有三个分组，有两个捕获的分组，             
       1、第一个捕获组用来捕获一个不包含字符 ,} 和 ] 的字符串，且该字符串前面有一个字符 ,，如：', index'。
       2、第二个分组为非捕获的分组，
       3、第三个分组为捕获的分组，其捕获的内容与第一个捕获组相同。
@@ -855,6 +855,12 @@ function findPrevElement (children: Array<any>): ASTElement | void {
   }
 }
 
+
+/**
+ * [processPre 用来检测 el 元素是否拥有 v-pre 属性]
+ * @param  {[type]} el [元素的描述对象]
+ * @return {[type]}    [如果有 v-pre 属性则会在 el 描述对象上添加一个 pre 属性]
+ */
 function processPre (el) {
   if (getAndRemoveAttr(el, 'v-pre') != null) {
     el.pre = true
