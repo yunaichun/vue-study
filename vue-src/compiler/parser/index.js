@@ -378,21 +378,31 @@ export function parse (
       for (let i = 0; i < preTransforms.length; i++) {
         element = preTransforms[i](element, options) || element
       }
-      /* 对当前元素添加描述
-         在元素描述对象上添加各种各样的具有标识作用的属性，比如之前的ns属性和forbidden属性，它们都能够对标签起到描述作用。
-      */
-      if (!inVPre) {
+      /*处理使用了v-pre指令的元素及其子元素*/
+      if (!inVPre) {     
         processPre(element)
         if (element.pre) {
           inVPre = true
         }
       }
       if (platformIsPreTag(element.tag)) {
+        /* latformIsPreTag 函数判断当前元素是否是 <pre> 标签
+           <pre> 标签内的解析行为与其他 html 标签是不同。具体不同体现在：
+           1、<pre> 标签会对其所包含的 html 字符实体进行解码
+           2、<pre> 标签会保留 html 字符串编写时的空白
+        */
         inPre = true
       }
+      /* 当前解析环境是在 v-pre 环境下:
+         编译器会跳过使用了 v-pre 指令元素及其子元素的编译工作
+      */
       if (inVPre) {
         processRawAttrs(element)
-      } else if (!element.processed) {
+      } 
+      /* 当前元素的解析没有处于 v-pre 环境：
+         会调用一系列 process* 函数来处理该元素的描述对象
+      */
+      else if (!element.processed) {
         // structural directives
         processFor(element)
         processIf(element)
@@ -851,27 +861,53 @@ function findPrevElement (children: Array<any>): ASTElement | void {
 
 
 /**
- * [processPre 用来检测 el 元素是否拥有 v-pre 属性]
+ * [processPre 处理使用了v-pre指令的元素及其子元素]
  * @param  {[type]} el [元素的描述对象]
  * @return {[type]}    [如果有 v-pre 属性则会在 el 描述对象上添加一个 pre 属性]
  */
 function processPre (el) {
+  /*获取给定元素的 v-pre 属性的值*/
   if (getAndRemoveAttr(el, 'v-pre') != null) {
     el.pre = true
   }
 }
 
+/*  对使用了 v-pre 指令的标签所生成的元素描述对象做一个总结：
+    1、如果标签使用了 v-pre 指令，则该标签的元素描述对象的 element.pre 属性将为 true。
+    2、对于使用了 v-pre 指令的标签及其子代标签，它们的任何属性都将会被作为原始属性处理，即使用 processRawAttrs 函数处理之。
+    3、经过 processRawAttrs 函数的处理，会在元素的描述对象上添加 element.attrs 属性，
+       它与 element.attrsList 数组结构相同，不同的是 element.attrs 数组中每个对象的 value 值会经过 JSON.stringify 函数处理。
+    4、如果一个标签没有任何属性，并且该标签是使用了 v-pre 指令标签的子代标签，那么该标签的元素描述对象将被添加 element.plain 属性，并且其值为 true。
+*/
+/**
+ * [processRawAttrs 处理使用了v-pre指令的元素及其子元素]
+ * @param  {[type]} el [元素的描述对象]
+ * @return {[type]}    [将该元素所有属性全部作为原生的属性(attr)处理]
+ */
 function processRawAttrs (el) {
   const l = el.attrsList.length
+  /* el.attrsList 数组的长度为 0 */
   if (l) {
     const attrs = el.attrs = new Array(l)
     for (let i = 0; i < l; i++) {
+      /*将el.attrsList上的属性全部转移到el.attrs上*/
       attrs[i] = {
         name: el.attrsList[i].name,
-        value: JSON.stringify(el.attrsList[i].value)
+        value: JSON.stringify(el.attrsList[i].value) /*.attrs 数组中每个对象的 value 属性值都是通过 JSON.stringify 处理过的*/
       }
     }
-  } else if (!el.pre) {
+  }
+  /* v-pre子代无属性元素 */
+  else if (!el.pre) {
+    /*举个例子如下：
+      <div v-pre>
+        <span></span>
+      </div>
+
+      如上 html 字符串所示，当解析 span 标签时，由于 span 标签没有任何属性，
+      并且 span 标签也没有使用 v-pre 指令，所以此时会在 span 标签的元素描述对象上添加 .plain 属性并将其设置为 true，
+      用来标识该元素是纯的，在代码生成的部分我们将看到一个被标识为 plain 的元素将有哪些不同。
+    */
     // non root node in pre blocks with no attributes
     el.plain = true
   }

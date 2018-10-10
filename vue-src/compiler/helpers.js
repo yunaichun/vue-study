@@ -112,11 +112,57 @@ export function getBindingAttr (
 // doesn't get processed by processAttrs.
 // By default it does NOT remove it from the map (attrsMap) because the map is
 // needed during codegen.
+/**
+ * [getAndRemoveAttr 获取给定元素的某个属性的值]
+ * @param  {[type]} el:             ASTElement    [元素描述对象]
+ * @param  {[type]} name:           string        [要获取元素属性的名字]
+ * @param  {[type]} removeFromMap?: boolean       [是一个可选参数，并且是一个布尔值]
+ * @return {[type]}                 [description]
+ */
 export function getAndRemoveAttr (
   el: ASTElement,
   name: string,
   removeFromMap?: boolean
 ): ?string {
+  /*  
+    一、举个例子假设我们有如下模板：<div v-if="display" ></div>
+        如上 div 标签的元素描述对象为：
+        element = {
+          // 省略其他属性
+          type: 1,
+          tag: 'div',
+          attrsList: [
+            {
+              name: 'v-if',
+              value: 'display'
+            }
+          ],
+          attrsMap: {
+            'v-if': 'display'
+          }
+        }
+
+    二、假设我们现在使用 getAndRemoveAttr 函数获取该元素的 v-if 属性的值：getAndRemoveAttr(element, 'v-if')
+        则该函数的返回值为字符串 'display'，同时会将 v-if 属性从 attrsList 数组中移除，所以处理之后为：
+        element = {
+          // 省略其他属性
+          type: 1,
+          tag: 'div',
+          attrsList: [],
+          attrsMap: {
+            'v-if': 'display'
+          }
+        }
+    三、如果传递给 getAndRemoveAttr 函数的第三个参数为真：getAndRemoveAttr(element, 'v-if', true)
+        那么除了将 v-if 属性从 attrsList 数组中移除之外，也会将其从 attrsMap 中移除，此时元素描述对象为：
+        element = {
+          // 省略其他属性
+          type: 1,
+          tag: 'div',
+          attrsList: [],
+          attrsMap: {}
+        }
+  */
   let val
   if ((val = el.attrsMap[name]) != null) {
     const list = el.attrsList
