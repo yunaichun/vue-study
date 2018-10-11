@@ -913,6 +913,88 @@ function processRawAttrs (el) {
   }
 }
 
+/*  对使用了 v-for 指令的标签所生成的元素描述对象做一个总结：
+    1、如果 v-for 指令的值为字符串 'obj in list'，则 processFor 函数的处理为：
+    {
+      for: 'list',
+      alias: 'obj'
+    }
+    2、如果 v-for 指令的值为字符串 '(obj, index) in list'，则 processFor 函数的处理为：
+    {
+      for: 'list',
+      alias: 'obj',
+      iterator1: 'index'
+    }
+    3、如果 v-for 指令的值为字符串 '(obj, key, index) in list'，则 processFor 函数的处理为：
+    {
+      for: 'list',
+      alias: 'obj',
+      iterator1: 'key',
+      iterator2: 'index'
+    }
+*/
+/**
+ * [processFor 处理使用了v-for指令的元素]
+ * @param  {[type]} el: ASTElement    [元素的描述对象]
+ * @return {[type]}                   [description]
+ */
+export function processFor (el: ASTElement) {
+  let exp
+  /*如果标签的 v-for 属性值存在*/
+  if ((exp = getAndRemoveAttr(el, 'v-for'))) {
+  /* 匹配list
+    1、假如我们当前元素是一个使用了 v-for 指令的 div 标签，如下：
+       <div v-for="obj in list"></div>
+    2、那么 exp 变量的值将是字符串 'obj in list'
+    3、最终 inMatch 常量则是一个数组，如下：
+       const inMatch = [
+          'obj in list',
+          'obj',
+          'list'
+        ]
+   */
+    const inMatch = exp.match(forAliasRE)
+    /*如果匹配失败则 inMatch 常量的值将为 null*/
+    if (!inMatch) {
+      process.env.NODE_ENV !== 'production' && warn(
+        `Invalid v-for expression: ${exp}`
+      )
+      return
+    }
+    /* 匹配list */
+    el.for = inMatch[2].trim()
+    /* v-for 指令的值与 alias 常量值的对应关系：
+       1、如果 v-for 指令的值为 'obj in list'，则 alias 的值为字符串 'obj'
+       2、如果 v-for 指令的值为 '(obj, index) in list'，则 alias 的值为字符串 'obj, index'
+       3、如果 v-for 指令的值为 '(obj, key, index) in list'，则 alias 的值为字符串 'obj, key, index'
+    */
+    /* 对于不同的 alias 字符串其对应的匹配结果：
+       1、如果 alias 字符串的值为 'obj'，则匹配结果 iteratorMatch 常量的值为 null
+       2、如果 alias 字符串的值为 'obj, index'，则匹配结果 iteratorMatch 常量的值是一个包含两个元素的数组：[', index', 'index']
+       3、如果 alias 字符串的值为 'obj, key, index'，则匹配结果 iteratorMatch 常量的值是一个包含三个元素的数组：[', key, index', 'key'， 'index']
+    */
+    /* 匹配obj*/
+    const alias = inMatch[1].trim()
+    const iteratorMatch = alias.match(forIteratorRE)
+    /* alise不为obj */
+    if (iteratorMatch) {
+      /* el.alias的值为obj */
+      el.alias = iteratorMatch[1].trim()
+      /* el.iterator1的值为key */
+      el.iterator1 = iteratorMatch[2].trim()
+      if (iteratorMatch[3]) {
+        /* el.iterator1的值为index */
+        el.iterator2 = iteratorMatch[3].trim()
+      }
+    }
+    /* alise为obj */
+    else {
+      /* el.alias的值为obj */
+      el.alias = alias
+    }
+  }
+}
+
 export function processElement (element: ASTElement, options: CompilerOptions) {
   processKey(element)
 
@@ -944,31 +1026,6 @@ function processRef (el) {
   if (ref) {
     el.ref = ref
     el.refInFor = checkInFor(el)
-  }
-}
-
-export function processFor (el: ASTElement) {
-  let exp
-  if ((exp = getAndRemoveAttr(el, 'v-for'))) {
-    const inMatch = exp.match(forAliasRE)
-    if (!inMatch) {
-      process.env.NODE_ENV !== 'production' && warn(
-        `Invalid v-for expression: ${exp}`
-      )
-      return
-    }
-    el.for = inMatch[2].trim()
-    const alias = inMatch[1].trim()
-    const iteratorMatch = alias.match(forIteratorRE)
-    if (iteratorMatch) {
-      el.alias = iteratorMatch[1].trim()
-      el.iterator1 = iteratorMatch[2].trim()
-      if (iteratorMatch[3]) {
-        el.iterator2 = iteratorMatch[3].trim()
-      }
-    } else {
-      el.alias = alias
-    }
   }
 }
 
