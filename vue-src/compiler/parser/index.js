@@ -1032,6 +1032,19 @@ function processIf (el) {
   }
 }
 
+/**
+ * [processOnce 处理使用了v-once指令的元素]
+ * @param  {[type]} el [元素的描述对象]
+ * @return {[type]}    [description]
+ */
+function processOnce (el) {
+  /*获取并移除元素描述对象的 attrsList 数组中名字为 v-once 的属性值，并将获取到的属性值赋值给 once 常量*/
+  const once = getAndRemoveAttr(el, 'v-once')
+  if (once != null) {
+    el.once = true
+  }
+}
+
 export function processElement (element: ASTElement, options: CompilerOptions) {
   processKey(element)
 
@@ -1063,13 +1076,6 @@ function processRef (el) {
   if (ref) {
     el.ref = ref
     el.refInFor = checkInFor(el)
-  }
-}
-
-function processOnce (el) {
-  const once = getAndRemoveAttr(el, 'v-once')
-  if (once != null) {
-    el.once = true
   }
 }
 
