@@ -1045,6 +1045,12 @@ function processOnce (el) {
   }
 }
 
+/**
+ * [processElement 其他一系列 process* 函数的集合]
+ * @param  {[type]} element: ASTElement      [元素的描述对象]
+ * @param  {[type]} options: CompilerOptions [选项参数]
+ * @return {[type]}                          [description]
+ */
 export function processElement (element: ASTElement, options: CompilerOptions) {
   processKey(element)
 
@@ -1061,9 +1067,20 @@ export function processElement (element: ASTElement, options: CompilerOptions) {
   processAttrs(element)
 }
 
+/*  对使用了key属性的元素对象做一个总结：
+    1、key 属性不能被应用到 <template> 标签。
+    2、使用了 key 属性的标签，其元素描述对象的 el.key 属性保存着 key 属性的值。
+*/
+/**
+ * [processKey 处理使用了key属性的元素]
+ * @param  {[type]} el [元素的描述对象]
+ * @return {[type]}    [description]
+ */
 function processKey (el) {
+  /*从元素描述对象的 attrsList 数组中获取到属性名字为 key 的属性值*/
   const exp = getBindingAttr(el, 'key')
   if (exp) {
+    /*不要在 <template> 标签上使用 key 属性*/
     if (process.env.NODE_ENV !== 'production' && el.tag === 'template') {
       warn(`<template> cannot be keyed. Place the key on real elements instead.`)
     }
