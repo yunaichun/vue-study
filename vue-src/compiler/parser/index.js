@@ -995,6 +995,43 @@ export function processFor (el: ASTElement) {
   }
 }
 
+/*  对使用了 v-if、v-else-if、v-else 指令的标签所生成的元素描述对象做一个总结：
+    1、如果标签使用了 v-if 指令，则该标签的元素描述对象的 el.if 属性存储着 v-if 指令的属性值
+    2、如果标签使用了 v-else 指令，则该标签的元素描述对象的 el.else 属性值为 true
+    3、如果标签使用了 v-else-if 指令，则该标签的元素描述对象的 el.elseif 属性存储着 v-else-if 指令的属性值
+    4、如果标签使用了 v-if 指令，则该标签的元素描述对象的 ifConditions 数组中包含“自己”
+    5、如果标签使用了 v-else 或 v-else-if 指令，则该标签的元素描述对象会被添加到与之相符的带有 v-if 指令的元素描述对象的 ifConditions 数组中。
+*/
+/**
+ * [processIf 处理使用了v-if、v-else-if、v-else指令的元素]
+ * @param  {[type]} el [元素的描述对象]
+ * @return {[type]}    [description]
+ */
+function processIf (el) {
+  /*从该元素描述对象的 attrsList 属性中获取并移除 v-if 指令的值，并将属性值赋值给 exp 常量*/
+  const exp = getAndRemoveAttr(el, 'v-if')
+  /*v-if指令存在，且值不为空*/
+  if (exp) {
+    el.if = exp
+    addIfCondition(el, {
+      exp: exp,
+      block: el
+    })
+  }
+  /*v-if指令不存在*/
+  else {
+    /*处理了 v-else 指令*/
+    if (getAndRemoveAttr(el, 'v-else') != null) {
+      el.else = true
+    }
+    /*处理了 v-else-if 指令*/
+    const elseif = getAndRemoveAttr(el, 'v-else-if')
+    if (elseif) {
+      el.elseif = elseif
+    }
+  }
+}
+
 export function processElement (element: ASTElement, options: CompilerOptions) {
   processKey(element)
 
@@ -1026,25 +1063,6 @@ function processRef (el) {
   if (ref) {
     el.ref = ref
     el.refInFor = checkInFor(el)
-  }
-}
-
-function processIf (el) {
-  const exp = getAndRemoveAttr(el, 'v-if')
-  if (exp) {
-    el.if = exp
-    addIfCondition(el, {
-      exp: exp,
-      block: el
-    })
-  } else {
-    if (getAndRemoveAttr(el, 'v-else') != null) {
-      el.else = true
-    }
-    const elseif = getAndRemoveAttr(el, 'v-else-if')
-    if (elseif) {
-      el.elseif = elseif
-    }
   }
 }
 
