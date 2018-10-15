@@ -90,19 +90,43 @@ export function addHandler (
   }
 }
 
+/**
+ * [getBindingAttr 获取绑定的属性值]
+ * @param  {[type]} el:         ASTElement    [元素描述对象]
+ * @param  {[type]} name:       string        [要获取的属性的名字]
+ * @param  {[type]} getStatic?: boolean       [description]
+ * @return {[type]}             [description]
+ */
 export function getBindingAttr (
   el: ASTElement,
   name: string,
   getStatic?: boolean
 ): ?string {
+  /*获取绑定的动态属性值:  v-bind: 或者 : */
   const dynamicValue =
     getAndRemoveAttr(el, ':' + name) ||
     getAndRemoveAttr(el, 'v-bind:' + name)
+  /*v-bind:a='' 或者 v-bind:a='b'*/
   if (dynamicValue != null) {
+    /*
+      1、平时开发中使用过滤器更多的场景是如下这种方式：：
+         <div>{{ date | format('yy-mm-dd') }}</div>
+      2、实际上对于绑定的属性值同样可以使用过滤器，如下：
+         <div :key="id | featId"></div>
+    */
     return parseFilters(dynamicValue)
-  } else if (getStatic !== false) {
+  }
+  /* 1、v-bind:a
+     2、不传递第三个参数getStatic，则参数 getStatic 的值为 undefined，它不全等于 false
+  */
+  else if (getStatic !== false) {
+    /*
+      1、当为元素或组件添加属性时，这个属性可以是绑定的也可以是非绑定的，
+      2、所以当获取绑定的属性失败时，我们不能够认为开发者没有编写该属性，而应继续尝试获取非绑定的属性值。
+    */
     const staticValue = getAndRemoveAttr(el, name)
     if (staticValue != null) {
+      /*使用 JSON.stringify 函数处理其属性值的原因，目的就是确保将非绑定的属性值作为字符串处理，而不是变量或表达式。*/
       return JSON.stringify(staticValue)
     }
   }
