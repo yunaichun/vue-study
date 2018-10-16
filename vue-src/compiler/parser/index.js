@@ -1161,9 +1161,36 @@ function checkInFor (el: ASTElement): boolean {
   return false
 }
 
+/*  对使用插槽的元素做一个总结：
+    1、对于 <slot> 标签，会为其元素描述对象添加 el.slotName 属性，属性值为该标签 name 属性的值，并且 name 属性可以是绑定的。
+    2、对于 <template> 标签，会优先获取并使用该标签 scope 属性的值，如果获取不到则会获取 slot-scope 属性的值，并将获取到的值赋值给元素描述对象的 el.slotScope 属性，注意 scope 属性和 slot-scope 属性不能是绑定的。
+    3、对于其他标签，会尝试获取 slot-scope 属性的值，并将获取到的值赋值给元素描述对象的 el.slotScope 属性。
+    4、对于非 <slot> 标签，会尝试获取该标签的 slot 属性，并将获取到的值赋值给元素描述对象的 el.slotTarget 属性。如果一个标签使用了 slot 属性但却没有给定相应的值，则该标签元素描述对象的 el.slotTarget 属性值为字符串 '"default"'。
+*/
+/**
+ * [processSlot 处理使用了插槽的元素]
+ * @param  {[type]} el [元素的描述对象]
+ * @return {[type]}    [description]
+ */
 function processSlot (el) {
+  /*  与插槽相关的使用形式：
+      1、默认插槽：
+      <slot></slot>
+      2、具名插槽
+      <slot name="header"></slot>
+      3、插槽内容
+      <h1 slot="header">title</h1>
+      4、作用域插槽 - slot-scope
+      <h1 slot="header" slot-scope="slotProps">{{slotProps}}</h1>
+      5、作用域插槽 - scope
+      <template slot="header" scope="slotProps">
+        <h1>{{slotProps}}</h1>
+      </template>
+  */
+  /*处理 <slot> 插槽标签*/
   if (el.tag === 'slot') {
     el.slotName = getBindingAttr(el, 'name')
+    /*抽象组件的特点是要么不渲染真实DOM，要么会被不可预知的DOM元素替代。这就是在这些标签上不能使用 key 属性的原因*/
     if (process.env.NODE_ENV !== 'production' && el.key) {
       warn(
         `\`key\` does not work on <slot> because slots are abstract outlets ` +
@@ -1173,9 +1200,11 @@ function processSlot (el) {
     }
   } else {
     let slotScope
+    /*处理 <template> 插槽标签*/
     if (el.tag === 'template') {
       slotScope = getAndRemoveAttr(el, 'scope')
       /* istanbul ignore if */
+      /*scope 只能使用在 template 标签上，并且在 2.5.0+ 版本中已经被 slot-scope 特性替代。*/
       if (process.env.NODE_ENV !== 'production' && slotScope) {
         warn(
           `the "scope" attribute for scoped slots have been deprecated and ` +
@@ -1186,15 +1215,20 @@ function processSlot (el) {
         )
       }
       el.slotScope = slotScope || getAndRemoveAttr(el, 'slot-scope')
-    } else if ((slotScope = getAndRemoveAttr(el, 'slot-scope'))) {
+    }
+    /*处理 其他元素插槽标签: <h1 slot="header" slot-scope="slotProps">{{slotProps}}</h1>*/
+    else if ((slotScope = getAndRemoveAttr(el, 'slot-scope'))) {
       el.slotScope = slotScope
     }
+    /*处理标签的 slot 属性*/
     const slotTarget = getBindingAttr(el, 'slot')
     if (slotTarget) {
       el.slotTarget = slotTarget === '""' ? '"default"' : slotTarget
       // preserve slot as an attribute for native shadow DOM compat
       // only for non-scoped slots.
+      /* 保存原生影子DOM(shadow DOM)的 slot 属性*/
       if (!el.slotScope) {
+       /* addAttr函数将属性的名字和值以对象的形式添加到元素描述对象的 el.attrs 数组中*/
         addAttr(el, 'slot', slotTarget)
       }
     }

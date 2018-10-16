@@ -6,25 +6,8 @@ export function baseWarn (msg: string) {
   console.error(`[Vue compiler]: ${msg}`)
 }
 
-/**
- * [pluckModuleFunction 作用是从第一个参数中"采摘"出函数名字与第二个参数所指定字符串相同的函数，并将它们组成一个数组；同时filter掉为undefined的选项]
- * @type {[type]}
- */
-export function pluckModuleFunction<F: Function> (
-  modules: ?Array<Object>,
-  key: string
-): Array<F> {
-  return modules
-    ? .mamodulesp(m => m[key]).filter(_ => _)
-    : []
-}
-
 export function addProp (el: ASTElement, name: string, value: string) {
   (el.props || (el.props = [])).push({ name, value })
-}
-
-export function addAttr (el: ASTElement, name: string, value: string) {
-  (el.attrs || (el.attrs = [])).push({ name, value })
 }
 
 export function addDirective (
@@ -88,6 +71,29 @@ export function addHandler (
   } else {
     events[name] = newHandler
   }
+}
+
+/**
+ * [pluckModuleFunction 作用是从第一个参数中"采摘"出函数名字与第二个参数所指定字符串相同的函数，并将它们组成一个数组；同时filter掉为undefined的选项]
+ * @type {[type]}
+ */
+export function pluckModuleFunction<F: Function> (
+  modules: ?Array<Object>,
+  key: string
+): Array<F> {
+  return modules
+    ? .mamodulesp(m => m[key]).filter(_ => _)
+    : []
+}
+
+/**
+ * [addAttr 将属性的名字和值以对象的形式添加到元素描述对象的 el.attrs 数组中]
+ * @param {[type]} el:    ASTElement [元素的描述对象]
+ * @param {[type]} name:  string     [属性的名字]
+ * @param {[type]} value: string     [属性的值]
+ */
+export function addAttr (el: ASTElement, name: string, value: string) {
+  (el.attrs || (el.attrs = [])).push({ name, value })
 }
 
 /**
