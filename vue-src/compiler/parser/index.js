@@ -1235,11 +1235,31 @@ function processSlot (el) {
   }
 }
 
+/**
+ * [processComponent 处理内置 component 组件的元素]
+ * @param  {[type]} el [元素的描述对象]
+ * @return {[type]}    [description]
+ */
 function processComponent (el) {
   let binding
+  /*  is 属性值的情况：
+      1、例子一：
+      <div is></div>
+      上例中的 is 属性是非绑定的，并且没有任何值，则最终如上标签经过处理后其元素描述对象的 el.component 属性值为空字符串：
+      el.component = ''
+      2、例子二：
+      <div is="child"></div>
+      上例中的 is 属性是非绑定的，但是有一个字符串值，则最终如上标签经过处理后其元素描述对象的 el.component 属性值为：
+      el.component = JSON.stringify('child')
+      3、例子三：
+      <div :is="child"></div>
+      上例中的 is 属性是绑定的，并且有一个字符串值，则最终如上标签经过处理后其元素描述对象的 el.component 属性值为：
+      el.component = 'child'
+  */
   if ((binding = getBindingAttr(el, 'is'))) {
     el.component = binding
   }
+  /*将元素描述对象的 el.inlineTemplate 属性设置为 true，代表着该标签使用了 inline-template 属性。*/
   if (getAndRemoveAttr(el, 'inline-template') != null) {
     el.inlineTemplate = true
   }
