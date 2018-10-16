@@ -1052,6 +1052,7 @@ function processOnce (el) {
  * @return {[type]}                          [description]
  */
 export function processElement (element: ASTElement, options: CompilerOptions) {
+  /*处理使用了key属性的元素*/
   processKey(element)
 
   // determine whether this is a plain element after
@@ -1084,6 +1085,22 @@ function processKey (el) {
     if (process.env.NODE_ENV !== 'production' && el.tag === 'template') {
       warn(`<template> cannot be keyed. Place the key on real elements instead.`)
     }
+    /* el.key所有可能的值：
+      如果一个标签使用了 key 属性，则该标签的元素描述对象上将被添加 el.key 属性，为了更直观地理解 el.key 属性的值，做一些总结：
+      1、例子一：
+         <div key="id"></div>
+         上例中 div 标签的属性 key 是非绑定属性，所以会将它的值作为普通字符串处理，这时 el.key 属性的值为：
+         el.key = JSON.stringify('id')
+      2、例子二：
+         <div :key="id"></div>
+         上例中 div 标签的属性 key 是绑定属性，所以会将它的值作为表达式处理，而非普通字符串，这时 el.key 属性的值为：
+         el.key = 'id'
+      3、例子三：
+         <div :key="id | featId"></div>
+         上例中 div 标签的属性 key 是绑定属性，并且应用了过滤器，所以会将它的值与过滤器整合在一起产生一个新的表达式，这时 el.key 属性的值为：
+         el.key = '_f("featId")(id)'
+      以上就是 el.key 属性的所有可能值。
+    */
     el.key = exp
   }
 }

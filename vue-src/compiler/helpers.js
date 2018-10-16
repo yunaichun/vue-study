@@ -108,7 +108,7 @@ export function getBindingAttr (
     getAndRemoveAttr(el, 'v-bind:' + name)
   /*v-bind:a='' 或者 v-bind:a='b'*/
   if (dynamicValue != null) {
-    /*
+    /* 动态属性解析：解析过滤器
       1、平时开发中使用过滤器更多的场景是如下这种方式：：
          <div>{{ date | format('yy-mm-dd') }}</div>
       2、实际上对于绑定的属性值同样可以使用过滤器，如下：
@@ -120,7 +120,7 @@ export function getBindingAttr (
      2、不传递第三个参数getStatic，则参数 getStatic 的值为 undefined，它不全等于 false
   */
   else if (getStatic !== false) {
-    /*
+    /* 静态属性解析：返回静态属性值
       1、当为元素或组件添加属性时，这个属性可以是绑定的也可以是非绑定的，
       2、所以当获取绑定的属性失败时，我们不能够认为开发者没有编写该属性，而应继续尝试获取非绑定的属性值。
     */
