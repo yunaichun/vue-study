@@ -404,6 +404,10 @@ export function parse (
       */
       else if (!element.processed) {
         // structural directives
+        /* 结构化指令：
+          v-for、v-if/v-else-if/v-else、v-once 等指令会被认为是结构化的指令(structural directives)。
+          这些指令在经过 processFor、processIf 以及 processOnce 等处理后，会把这些指令从元素描述对象的 attrsList 数组中移除。
+        */
         processFor(element)
         processIf(element)
         processOnce(element)
@@ -1057,6 +1061,7 @@ export function processElement (element: ASTElement, options: CompilerOptions) {
 
   // determine whether this is a plain element after
   // removing structural attributes
+  /*只有当标签没有使用 key 属性，并且标签只使用了结构化指令的情况下才被认为是“纯”的*/
   element.plain = !element.key && !element.attrsList.length
 
   processRef(element)
@@ -1105,12 +1110,55 @@ function processKey (el) {
   }
 }
 
+/*  如果一个标签使用了 ref 属性，则：
+    1、该标签的元素描述对象会被添加 el.ref 属性，该属性为解析后生成的表达式字符串，与 el.key 类似。
+    2、该标签的元素描述对象会被添加 el.refInFor 属性，它是一个布尔值，用来标识当前元素的 ref 属性是否在 v-for 指令之内使用。
+*/
+/**
+ * [processRef 处理使用了ref属性的元素]
+ * @param  {[type]} el [元素的描述对象]
+ * @return {[type]}    [description]
+ */
 function processRef (el) {
   const ref = getBindingAttr(el, 'ref')
   if (ref) {
     el.ref = ref
+    /*该属性是一个布尔值，标识着这个使用了 ref 属性的标签是否存在于 v-for 指令之内*/
     el.refInFor = checkInFor(el)
   }
+}
+
+
+/*  为什么要检查 ref 属性是否在 v-for 指令之内使用呢？
+    很简单，如果 ref 属性存在于 v-for 指令之内，我们需要创建一个组件实例或DOM节点的引用数组，而不是单一引用，
+    这个时候就需要 el.refInFor 属性来区分了。这些内容会在讲解 $ref 属性的实现时详细阐述。
+*/
+/**
+ * [checkInFor 检测某个标签是否存在于 v-for 指令之内]
+ * @param  {[type]} el: ASTElement    [元素的描述对象]
+ * @return {[type]}                   [description]
+ */
+function checkInFor (el: ASTElement): boolean {
+  let parent = el
+  /* 从当前节点向上遍历：
+    1、<!-- 代码段一 -->
+      <div v-for="obj of list" :ref="obj.id"></div>
+
+    2、<!-- 代码段二 -->
+      <div v-for="obj of list">
+        <div :ref="obj.id"></div>
+      </div>
+
+    3、从当前元素的描述对象开始，逐层向父级节点遍历，直到根节点为止，
+       如果发现某标签的元素描述对象的 for 属性不为 undefined，则函数返回 true，意味着当前元素所使用的 ref 属性存在于 v-for 指令之内。
+  */
+  while (parent) {
+    if (parent.for !== undefined) {
+      return true
+    }
+    parent = parent.parent
+  }
+  return false
 }
 
 function processSlot (el) {
@@ -1237,17 +1285,6 @@ function processAttrs (el) {
       addAttr(el, name, JSON.stringify(value))
     }
   }
-}
-
-function checkInFor (el: ASTElement): boolean {
-  let parent = el
-  while (parent) {
-    if (parent.for !== undefined) {
-      return true
-    }
-    parent = parent.parent
-  }
-  return false
 }
 
 function parseModifiers (name: string): Object | void {
