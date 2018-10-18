@@ -1265,20 +1265,33 @@ function processComponent (el) {
   }
 }
 
+/**
+ * [processAttrs 处理剩余属性(v-text、v-html、v-show、v-on、v-bind、v-model、v-cloak)]
+ * @param  {[type]} el [元素的描述对象]
+ * @return {[type]}    [description]
+ */
 function processAttrs (el) {
+  /*剩余属性*/
   const list = el.attrsList
   let i, l, name, rawName, value, modifiers, isProp
   for (i = 0, l = list.length; i < l; i++) {
+    /*name 和 rawName 变量中保存的是属性的名字*/
     name = rawName = list[i].name
+    /*value 变量中则保存着属性的值*/
     value = list[i].value
+    /*匹配一个字符串是否以 v-、@ 或 : 开头，匹配成功则说明该属性是指令*/
     if (dirRE.test(name)) {
       // mark element as dynamic
+      /*标识当前元素有动态绑定的属性*/
       el.hasBindings = true
       // modifiers
+      /*解析指令中的修饰符*/
       modifiers = parseModifiers(name)
+      /*将修饰符从指令名称中移除*/
       if (modifiers) {
         name = name.replace(modifierRE, '')
       }
+      /*解析v-bind指令(包括缩写 :)*/
       if (bindRE.test(name)) { // v-bind
         name = name.replace(bindRE, '')
         value = parseFilters(value)
@@ -1307,10 +1320,14 @@ function processAttrs (el) {
         } else {
           addAttr(el, name, value)
         }
-      } else if (onRE.test(name)) { // v-on
+      }
+      /*解析v-on指令(包括缩写 @)*/
+      else if (onRE.test(name)) { // v-on
         name = name.replace(onRE, '')
         addHandler(el, name, value, modifiers, false, warn)
-      } else { // normal directives
+      }
+      /*解析其他指令*/
+      else { // normal directives
         name = name.replace(dirRE, '')
         // parse arg
         const argMatch = name.match(argRE)
@@ -1341,7 +1358,20 @@ function processAttrs (el) {
   }
 }
 
+/**
+ * [parseModifiers 解析指令中的修饰符]
+ * @param  {[type]} name: string        [属性的名字]
+ * @return {[type]}                     [description]
+ */
 function parseModifiers (name: string): Object | void {
+  /* 匹配修饰符：
+     1、全局匹配字符串中字符 . 以及 . 后面的字符，也就是修饰符，举个例子，
+     2、假设我们的指令字符串为：'v-bind:some-prop.sync'，则使用该字符串去匹配正则 modifierRE 最终将会得到一个数组：[".sync"]
+     3、最终 parseModifiers 会返回一个对象：
+        {
+          sync: true
+        }
+  */
   const match = name.match(modifierRE)
   if (match) {
     const ret = {}
