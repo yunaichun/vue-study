@@ -1285,27 +1285,90 @@ function processAttrs (el) {
       /*标识当前元素有动态绑定的属性*/
       el.hasBindings = true
       // modifiers
-      /*解析指令中的修饰符*/
+      /*解析指令'v-bind:some-prop.sync.prop'中的修饰符 { sync: true; prop: true; }*/
       modifiers = parseModifiers(name)
-      /*将修饰符从指令名称中移除*/
+      /*将修饰符从指令名称中移除'v-bind:some-prop'*/
       if (modifiers) {
         name = name.replace(modifierRE, '')
       }
-      /*解析v-bind指令(包括缩写 :)*/
+      /*一、解析v-bind指令(包括缩写 :) 
+        1、任何绑定的属性，最终要么会被添加到元素描述对象的 el.attrs 数组中，要么就被添加到元素描述对象的 el.props 数组中。
+        2、对于使用了 .sync 修饰符的绑定属性，还会在元素描述对象的 el.events 对象中添加名字为 'update:${驼峰化的属性名}' 的事件。
+      */
       if (bindRE.test(name)) { // v-bind
+        /*将指令字符串中的 v-bind: 或 : 去除掉：'v-bind:some-prop.sync.prop'  ->  'some-prop'*/
         name = name.replace(bindRE, '')
+        /*将表达式与过滤器整合在一起的*/
         value = parseFilters(value)
+        /*标识着该绑定的属性是否是原生DOM对象的属性：
+        所谓原生DOM对象的属性就是能够通过DOM元素对象直接访问的有效API，比如 innerHTML 就是一个原生DOM对象的属性。
+        */
         isProp = false
+        /*v-bind 属性有修饰符*/
         if (modifiers) {
+          /*修饰符为prop*/
           if (modifiers.prop) {
+            /*使用了 prop 修饰符，则意味着该属性将被作为原生DOM对象的属性*/
             isProp = true
+            /*将属性名驼峰化*/
             name = camelize(name)
+            /*如果属性名全等于该字符串则将属性名重写为字符串 'innerHTML'， 'innerHTML' 是一个特例，它的 HTML 四个字符串全部为大写*/
             if (name === 'innerHtml') name = 'innerHTML'
           }
+          /*修饰符为camel*/
           if (modifiers.camel) {
             name = camelize(name)
           }
+          /*修饰符为sync 
+            1、如果 modifiers.sync 为真，则说明该绑定的属性使用了 sync 修饰符。
+               sync 修饰符实际上是一个语法糖，子组件不能够直接修改 prop 值，通常我们会在子组件中发射一个自定义事件，
+               然后在父组件层面监听该事件并由父组件来修改状态。这个过程有时候过于繁琐，如下：
+              <template>
+                <child :some-prop="value" @custom-event="handleEvent" />
+              </template>
+
+              <script>
+              export default {
+                data () {
+                  value: ''
+                },
+                methods: {
+                  handleEvent (val) {
+                    this.value = val
+                  }
+                }
+              }
+              </script>
+
+            2、为了简化该过程，我们可以在绑定属性时使用 sync 修饰符：
+              <child :some-prop.sync="value" />
+              这句代码等价于：
+              <template>
+                <child :some-prop="value" @update:someProp="handleEvent" />
+              </template>
+
+              <script>
+              export default {
+                data () {
+                  value: ''
+                },
+                methods: {
+                  handleEvent (val) {
+                    this.value = val
+                  }
+                }
+              }
+              </script>
+
+            3、使用了 sync 修饰符的绑定属性等价于多了一个事件侦听，并且事件名称为 'update:${驼峰化的属性名}'。
+               :some-prop.sync <==等价于==> :some-prop + @update:someProp
+          */
           if (modifiers.sync) {
+            /**
+              * 元素对象
+              * 事件名称等于字符串 'update:' 加上驼峰化的绑定属性名称
+              * 属性值：genAssignmentCode函数生成字符串
+             */
             addHandler(
               el,
               `update:${camelize(name)}`,
@@ -1313,6 +1376,9 @@ function processAttrs (el) {
             )
           }
         }
+        /* 1、isProp 变量为真，则说明该绑定的属性是原生DOM对象的属性
+           2、el.component 属性保存的是标签 is 属性的值，如果 el.component 属性为假就能够保证标签没有使用 is 属性
+        */
         if (isProp || (
           !el.component && platformMustUseProp(el.tag, el.attrsMap.type, name)
         )) {
@@ -1321,12 +1387,12 @@ function processAttrs (el) {
           addAttr(el, name, value)
         }
       }
-      /*解析v-on指令(包括缩写 @)*/
+      /*二、解析v-on指令(包括缩写 @) */
       else if (onRE.test(name)) { // v-on
         name = name.replace(onRE, '')
         addHandler(el, name, value, modifiers, false, warn)
       }
-      /*解析其他指令*/
+      /*三、解析其他指令*/
       else { // normal directives
         name = name.replace(dirRE, '')
         // parse arg

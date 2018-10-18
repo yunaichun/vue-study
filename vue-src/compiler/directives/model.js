@@ -33,6 +33,12 @@ export function genComponentModel (
 /**
  * Cross-platform codegen helper for generating v-model value assignment code.
  */
+/**
+ * [genAssignmentCode v-bind、v-model]
+ * @param  {[type]} value:      string        [指令值]
+ * @param  {[type]} assignment: string        [description]
+ * @return {[type]}             [返回字符串]
+ */
 export function genAssignmentCode (
   value: string,
   assignment: string
@@ -41,6 +47,10 @@ export function genAssignmentCode (
   if (res.key === null) {
     return `${value}=${assignment}`
   } else {
+    /*
+      它返回的是一个代码字符串，可以看到如果这个代码字符串作为代码执行，
+      其作用就是一个赋值工作。这样就免去了我们手动赋值的繁琐
+    */
     return `$set(${res.exp}, ${res.key}, ${assignment})`
   }
 }

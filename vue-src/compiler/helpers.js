@@ -6,10 +6,6 @@ export function baseWarn (msg: string) {
   console.error(`[Vue compiler]: ${msg}`)
 }
 
-export function addProp (el: ASTElement, name: string, value: string) {
-  (el.props || (el.props = [])).push({ name, value })
-}
-
 export function addDirective (
   el: ASTElement,
   name: string,
@@ -21,6 +17,15 @@ export function addDirective (
   (el.directives || (el.directives = [])).push({ name, rawName, value, arg, modifiers })
 }
 
+/**
+ * [addHandler description]
+ * @param {[type]} el:         ASTElement    [元素对象]
+ * @param {[type]} name:       string        [事件名称]
+ * @param {[type]} value:      string        [回调函数]
+ * @param {[type]} modifiers:  ?ASTModifiers [description]
+ * @param {[type]} important?: boolean       [description]
+ * @param {[type]} warn?:      Function      [description]
+ */
 export function addHandler (
   el: ASTElement,
   name: string,
@@ -94,6 +99,16 @@ export function pluckModuleFunction<F: Function> (
  */
 export function addAttr (el: ASTElement, name: string, value: string) {
   (el.attrs || (el.attrs = [])).push({ name, value })
+}
+
+/**
+ * [addProp 将属性的名字和值以对象的形式添加到元素描述对象的 el.props 数组中]
+ * @param {[type]} el:    ASTElement [元素的描述对象]
+ * @param {[type]} name:  string     [属性的名字]
+ * @param {[type]} value: string     [属性的值]
+ */
+export function addProp (el: ASTElement, name: string, value: string) {
+  (el.props || (el.props = [])).push({ name, value })
 }
 
 /**
