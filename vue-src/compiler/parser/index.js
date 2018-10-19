@@ -1367,7 +1367,7 @@ function processAttrs (el) {
             addHandler(
               el,
               `update:${camelize(name)}`, /*事件名称：等于字符串 'update:' 加上驼峰化的绑定属性名称*/
-              genAssignmentCode(value, `$event`) /*事件的值：genAssignmentCode函数生成字符串*/
+              genAssignmentCode(value, `$event`) /*事件的值：genAssignmentCode函数生成一个代码字符串*/
             )
           }
         }

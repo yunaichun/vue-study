@@ -5,8 +5,11 @@ const validDivisionCharRE = /[\w).+\-_$\]]/
 
 /*
   var str = '[';
-  // charCodeAt默认生成十进制数据
+  // 字符串对应数字编码
   str.charCodeAt(0) === 91
+  // 数字编码对应字符串
+  String.fromCharCode(91)
+  String.fromCharCode(0x5b)
   // 十进制转为十六进制
   str.charCodeAt(0).toString(16) === '5b'
   // 十六进制转为十进制
