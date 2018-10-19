@@ -1413,10 +1413,19 @@ function processAttrs (el) {
           checkForAliasModel(el, value)
         }
       }
-    } else {
+    } 
+    /*匹配非指令属性：除了key、ref、slot、slot-scope、scope、name、is、inline-template*/
+    else {
       // literal attribute
       if (process.env.NODE_ENV !== 'production') {
         const expression = parseText(value, delimiters)
+        /*如下模板代码所示：
+          <div id="{{ isTrue ? 'a' : 'b' }}"></div>
+          其中字符串 "b" 称为字面量表达式，此时会使用 parseText 函数来解析这段字符串。
+          如果使用 parseText 函数能够成功解析某个非指令属性的属性值字符串，则说明该非指令属性的属性值使用了字面量表达式，就如同上面的模板中的 id 属性一样。
+          此时将会打印警告信息，提示开发者使用绑定属性作为替代，如下：
+          <div :id="isTrue ? 'a' : 'b'"></div>
+        */
         if (expression) {
           warn(
             `${name}="${value}": ` +
@@ -1426,6 +1435,7 @@ function processAttrs (el) {
           )
         }
       }
+      /*让该属性的值当做一个纯字符串对待*/
       addAttr(el, name, JSON.stringify(value))
     }
   }
@@ -1451,11 +1461,6 @@ function parseModifiers (name: string): Object | void {
     match.forEach(m => { ret[m.slice(1)] = true })
     return ret
   }
-}
-
-// for script (e.g. type="x/template") or style, do not decode content
-function isTextTag (el): boolean {
-  return el.tag === 'script' || el.tag === 'style'
 }
 
 /**
@@ -1501,4 +1506,9 @@ function checkForAliasModel (el, value) {
     }
     _el = _el.parent
   }
+}
+
+// for script (e.g. type="x/template") or style, do not decode content
+function isTextTag (el): boolean {
+  return el.tag === 'script' || el.tag === 'style'
 }
