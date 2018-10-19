@@ -6,6 +6,15 @@ export function baseWarn (msg: string) {
   console.error(`[Vue compiler]: ${msg}`)
 }
 
+/**
+ * [addDirective 添加v-text、v-html、v-show、v-cloak、v-model、自定义指令到元素对象上]
+ * @param {[type]} el:        ASTElement    [当前元素描述对象]
+ * @param {[type]} name:      string        [绑定属性的名字(custom)]
+ * @param {[type]} rawName:   string        [绑定属性的名字(v-custom:arg.modif)]
+ * @param {[type]} value:     string        [绑定属性的值]
+ * @param {[type]} arg:       ?string       [参数字符串(arg)]
+ * @param {[type]} modifiers: ?ASTModifiers [修饰符]
+ */
 export function addDirective (
   el: ASTElement,
   name: string,

@@ -1363,7 +1363,7 @@ function processAttrs (el) {
                :some-prop.sync <==等价于==> :some-prop + @update:someProp
           */
           if (modifiers.sync) {
-            /*添加v-on(或者@)绑定的事件到元素对象上*/
+            /*添加v-on(或者@)绑定的事件到元素对象el.events上*/
             addHandler(
               el,
               `update:${camelize(name)}`, /*事件名称：等于字符串 'update:' 加上驼峰化的绑定属性名称*/
@@ -1389,16 +1389,26 @@ function processAttrs (el) {
         /*添加v-on(或者@)绑定的事件到元素对象上*/
         addHandler(el, name, value, modifiers, false, warn)
       }
-      /*三、解析其他指令*/
+      /*三、解析其他指令：v-text、v-html、v-show、v-cloak、v-model、自定义指令*/
       else { // normal directives
+        /*去掉属性名称中的 'v-' 或 ':' 或 '@' 等字符，ame 变量中将不会包含修饰符字符串（parseModifiers）*/
         name = name.replace(dirRE, '')
         // parse arg
+        /*假设现在 name 变量的值为 custom:arg，则最终 argMatch 常量将是一个数组：
+          const argMatch = [':arg', 'arg']
+          可以看到 argMatch 数组中索引为 1 的元素保存着参数字符串。
+        */
         const argMatch = name.match(argRE)
         const arg = argMatch && argMatch[1]
+        /*存在修饰符，将name中的修饰符去掉*/
         if (arg) {
           name = name.slice(0, -(arg.length + 1))
         }
+        /*假设我们的指令为：v-custom:arg.modif="myMethod"，则最终调用 addDirective 函数时所传递的参数如下：
+        addDirective(el, 'custom', 'v-custom:arg.modif', 'myMethod', 'arg', { modif: true })
+        */
         addDirective(el, name, rawName, value, arg, modifiers)
+        /*如果指令的名字为 model*/
         if (process.env.NODE_ENV !== 'production' && name === 'model') {
           checkForAliasModel(el, value)
         }
@@ -1420,7 +1430,7 @@ function processAttrs (el) {
     }
   }
 }
-
+  
 /**
  * [parseModifiers 解析指令中的修饰符]
  * @param  {[type]} name: string        [属性的名字]
@@ -1448,9 +1458,38 @@ function isTextTag (el): boolean {
   return el.tag === 'script' || el.tag === 'style'
 }
 
+/**
+ * [checkForAliasModel 指令为v-model时校验]
+ * @param  {[type]} el    [当前元素描述对象]
+ * @param  {[type]} value [v-model绑定的值]
+ * @return {[type]}       [description]
+ */
 function checkForAliasModel (el, value) {
   let _el = el
+  /*从使用了 v-model 指令的标签开始，逐层向上遍历父级标签的元素描述对象，直到根元素为止*/
   while (_el) {
+    /* 
+      1、使用了 v-model 指令的标签或其父代标签使用了 v-for 指令，如下：
+        <div v-for="item of list">
+          <input v-model="item" />
+        </div>
+        假设如上代码中的 list 数组如下：
+        [1, 2, 3]
+        此时将会渲染三个输入框，但是当我们修改输入框的值时，这个变更是不会体现到 list 数组的，换句话说如上代码中的 v-model 指令无效，为什么无效呢？
+        这与 v-for 指令的实现有关，如上代码中的 v-model 指令所执行的修改操作等价于修改了函数的局部变量，这当然不会影响到真正的数据。
+
+      2、为了解决这个问题，Vue 也给了我们一个方案，那就是使用对象数组替代基本类型值的数组，并在 v-model 指令中绑定对象的属性，我们修改一下上例并使其生效：
+      <div v-for="obj of list">
+        <input v-model="obj.item" />
+      </div>
+      此时在定义 list 数组时，应该将其定义为：
+      [
+        { item: 1 },
+        { item: 2 },
+        { item: 3 },
+      ]
+      所以实际上 checkForAliasModel 函数的作用就是给开发者合适的提醒。
+    */
     if (_el.for && _el.alias === value) {
       warn(
         `<${el.tag} v-model="${value}">: ` +
