@@ -3,6 +3,15 @@
 /*该正则用来匹配一个字符，这个字符应该是字母、数字、)、.、+、-、_、$、] 之一*/
 const validDivisionCharRE = /[\w).+\-_$\]]/
 
+/*
+  var str = '[';
+  // charCodeAt默认生成十进制数据
+  str.charCodeAt(0) === 91
+  // 十进制转为十六进制
+  str.charCodeAt(0).toString(16) === '5b'
+  // 十六进制转为十进制
+  0x5b.toString(10) === '91'
+*/
 /**
  * [parseFilters 过滤器的解析]
  * @param  {[type]} exp: string        [动态绑定的值(v-bind或:)]

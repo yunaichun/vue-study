@@ -18,13 +18,13 @@ export function addDirective (
 }
 
 /**
- * [addHandler description]
- * @param {[type]} el:         ASTElement    [元素对象]
- * @param {[type]} name:       string        [事件名称]
- * @param {[type]} value:      string        [回调函数]
- * @param {[type]} modifiers:  ?ASTModifiers [description]
- * @param {[type]} important?: boolean       [description]
- * @param {[type]} warn?:      Function      [description]
+ * [addHandler 添加v-on(或者@)绑定的事件到元素对象上]
+ * @param {[type]} el:         ASTElement    [当前元素描述对象]
+ * @param {[type]} name:       string        [绑定属性的名字，即事件名称]
+ * @param {[type]} value:      string        [绑定属性的值，这个值有可能是事件回调函数名字，有可能是内联语句，有可能是函数表达式]
+ * @param {[type]} modifiers:  ?ASTModifiers [指令对象(修饰符)]
+ * @param {[type]} important?: boolean       [可选参数，是一个布尔值，代表着添加的事件侦听函数的重要级别，如果为 true，则该侦听函数会被添加到该事件侦听函数数组的头部，否则会将其添加到尾部]
+ * @param {[type]} warn?:      Function      [打印警告信息的函数，是一个可选参数]
  */
 export function addHandler (
   el: ASTElement,
@@ -36,6 +36,7 @@ export function addHandler (
 ) {
   // warn prevent and passive modifier
   /* istanbul ignore if */
+  /*passive 修饰符不能和 prevent 修饰符一起使用，因为在事件监听中 passive 选项参数就是用来告诉浏览器该事件监听函数是不会阻止默认行为的。*/
   if (
     process.env.NODE_ENV !== 'production' && warn &&
     modifiers && modifiers.prevent && modifiers.passive
@@ -46,34 +47,110 @@ export function addHandler (
     )
   }
   // check capture modifier
+  /*如果使用了 capture 修饰符，会把事件名称 'click' 修改为 '!click'。*/
   if (modifiers && modifiers.capture) {
     delete modifiers.capture
     name = '!' + name // mark the event as captured
   }
+  /*如果使用了 capture 修饰符，会把事件名称 'click' 修改为 '~click'。*/
   if (modifiers && modifiers.once) {
+    /*如下两段代码是等价的：
+      <div @click.once="handleClick"></div>
+      等价于：
+      <div @~click="handleClick"></div>
+    */
     delete modifiers.once
     name = '~' + name // mark the event as once
   }
   /* istanbul ignore if */
+  /*如果使用了 capture 修饰符，会把事件名称 'click' 修改为 '&click'。*/
   if (modifiers && modifiers.passive) {
     delete modifiers.passive
     name = '&' + name // mark the event as passive
   }
   let events
+  /*如果使用了 native 修饰符，会在元素描述对象添加events或者nativeEvents属性*/
   if (modifiers && modifiers.native) {
     delete modifiers.native
     events = el.nativeEvents || (el.nativeEvents = {})
   } else {
     events = el.events || (el.events = {})
   }
+  /*newHandler：v-on属性值 + 修饰符对象*/
   const newHandler = { value, modifiers }
+  /*初始handlers是undefined*/
   const handlers = events[name]
   /* istanbul ignore if */
   if (Array.isArray(handlers)) {
+    /*有超过两个相同事件：
+      1、假设我们有如下模板代码：
+        <div @click.prevent="handleClick1" @click="handleClick2" @click.self="handleClick3"></div>
+        handlers保存的是第一次被添加的事件信息，newHandler 对象是第二个 click 事件侦听的信息对象
+        el.events = {
+          click: [
+            {
+              value: 'handleClick1',
+              modifiers: { prevent: true }
+            },
+            {
+              value: 'handleClick2'
+            },
+            {
+              value: 'handleClick2',
+              modifiers: { self: true }
+            }
+          ]
+        }
+    */
     important ? handlers.unshift(newHandler) : handlers.push(newHandler)
   } else if (handlers) {
+   /*有两个相同事件：
+      1、假设我们有如下模板代码：
+        <div @click.prevent="handleClick1" @click="handleClick2"></div>
+        如上模板所示，我们有两个 click 事件的侦听，其中一个 click 事件使用了 prevent 修饰符，而另外一个 click 事件则没有使用修饰符，
+        所以这两个 click 事件是不同，但这两个事件的名称却是相同的，都是 'click'，
+        所以这将导致调用两次 addHandler 函数添加两次名称相同的事件，
+        但是由于第一次调用 addHandler 函数添加 click 事件之后元素描述对象的 el.events 对象已经存在一个 click 属性，如下：
+        el.events = {
+          click: {
+            value: 'handleClick1',
+            modifiers: { prevent: true }
+          }
+        }
+      2、handlers保存的是第一次被添加的事件信息，newHandler 对象是第二个 click 事件侦听的信息对象
+        el.events = {
+          click: [
+            {
+              value: 'handleClick1',
+              modifiers: { prevent: true }
+            },
+            {
+              value: 'handleClick2'
+            }
+          ]
+        }
+    */
     events[name] = important ? [newHandler, handlers] : [handlers, newHandler]
   } else {
+    /*只有一个事件：
+      1、假设我们有如下模板代码：
+         <div @click.once="handleClick"></div>
+         如上模板中监听了 click 事件，并绑定了名字叫做 handleClick 的事件监听函数，所以此时 newHandler 对象应该是：
+         newHandler = {
+           value: 'handleClick',
+           modifiers: {} // 注意这里是空对象，因为 modifiers.once 修饰符被 delete 了
+         }
+
+      2、又因为使用了 once 修饰符，所以事件名称将变为字符串 '~click'，
+         又因为在监听事件时没有使用 native 修饰符，所以 events 变量是元素描述对象的 el.events 属性的引用，
+         所以调用 addHandler 函数的最终结果就是在元素描述对象的 el.events 对象中添加相应事件的处理结果：
+         el.events = {
+           '~click': {
+              value: 'handleClick',
+              modifiers: {}
+            }
+         }
+    */
     events[name] = newHandler
   }
 }

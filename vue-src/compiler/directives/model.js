@@ -3,6 +3,13 @@
 /**
  * Cross-platform code generation for component v-model
  */
+/**
+ * [genComponentModel description]
+ * @param  {[type]} el:        ASTElement    [description]
+ * @param  {[type]} value:     string        [description]
+ * @param  {[type]} modifiers: ?ASTModifiers [description]
+ * @return {[type]}                          [description]
+ */
 export function genComponentModel (
   el: ASTElement,
   value: string,
@@ -32,12 +39,6 @@ export function genComponentModel (
 
 /**
  * Cross-platform codegen helper for generating v-model value assignment code.
- */
-/**
- * [genAssignmentCode v-bind、v-model]
- * @param  {[type]} value:      string        [指令值]
- * @param  {[type]} assignment: string        [description]
- * @return {[type]}             [返回字符串]
  */
 export function genAssignmentCode (
   value: string,
@@ -77,6 +78,20 @@ type ModelParseResult = {
   key: string | null
 }
 
+/*
+  var str = '[';
+  // charCodeAt默认生成十进制数据
+  str.charCodeAt(0) === 91
+  // 十进制转为十六进制
+  str.charCodeAt(0).toString(16) === '5b'
+  // 十六进制转为十进制
+  0x5b.toString(10) === '91'
+*/
+/**
+ * [parseModel description]
+ * @param  {[type]} val: string        [description]
+ * @return {[type]}                    [description]
+ */
 export function parseModel (val: string): ModelParseResult {
   len = val.length
 

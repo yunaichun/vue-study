@@ -1285,7 +1285,7 @@ function processAttrs (el) {
       /*标识当前元素有动态绑定的属性*/
       el.hasBindings = true
       // modifiers
-      /*解析指令'v-bind:some-prop.sync.prop'中的修饰符 { sync: true; prop: true; }*/
+      /*解析指令中的修饰符：'v-bind:some-prop.sync.prop'中的修饰符 { sync: true; prop: true; }*/
       modifiers = parseModifiers(name)
       /*将修饰符从指令名称中移除'v-bind:some-prop'*/
       if (modifiers) {
@@ -1298,7 +1298,7 @@ function processAttrs (el) {
       if (bindRE.test(name)) { // v-bind
         /*将指令字符串中的 v-bind: 或 : 去除掉：'v-bind:some-prop.sync.prop'  ->  'some-prop'*/
         name = name.replace(bindRE, '')
-        /*将表达式与过滤器整合在一起的*/
+        /*属性值中过滤器的解析*/
         value = parseFilters(value)
         /*标识着该绑定的属性是否是原生DOM对象的属性：
         所谓原生DOM对象的属性就是能够通过DOM元素对象直接访问的有效API，比如 innerHTML 就是一个原生DOM对象的属性。
@@ -1320,8 +1320,7 @@ function processAttrs (el) {
             name = camelize(name)
           }
           /*修饰符为sync 
-            1、如果 modifiers.sync 为真，则说明该绑定的属性使用了 sync 修饰符。
-               sync 修饰符实际上是一个语法糖，子组件不能够直接修改 prop 值，通常我们会在子组件中发射一个自定义事件，
+            1、sync 修饰符实际上是一个语法糖，子组件不能够直接修改 prop 值，通常我们会在子组件中发射一个自定义事件，
                然后在父组件层面监听该事件并由父组件来修改状态。这个过程有时候过于繁琐，如下：
               <template>
                 <child :some-prop="value" @custom-event="handleEvent" />
@@ -1342,7 +1341,7 @@ function processAttrs (el) {
 
             2、为了简化该过程，我们可以在绑定属性时使用 sync 修饰符：
               <child :some-prop.sync="value" />
-              这句代码等价于：
+              <==等价于==>
               <template>
                 <child :some-prop="value" @update:someProp="handleEvent" />
               </template>
@@ -1364,15 +1363,11 @@ function processAttrs (el) {
                :some-prop.sync <==等价于==> :some-prop + @update:someProp
           */
           if (modifiers.sync) {
-            /**
-              * 元素对象
-              * 事件名称等于字符串 'update:' 加上驼峰化的绑定属性名称
-              * 属性值：genAssignmentCode函数生成字符串
-             */
+            /*添加v-on(或者@)绑定的事件到元素对象上*/
             addHandler(
               el,
-              `update:${camelize(name)}`,
-              genAssignmentCode(value, `$event`)
+              `update:${camelize(name)}`, /*事件名称：等于字符串 'update:' 加上驼峰化的绑定属性名称*/
+              genAssignmentCode(value, `$event`) /*事件的值：genAssignmentCode函数生成字符串*/
             )
           }
         }
@@ -1389,7 +1384,9 @@ function processAttrs (el) {
       }
       /*二、解析v-on指令(包括缩写 @) */
       else if (onRE.test(name)) { // v-on
+        /*将指令字符串中的 @ 字符或 v-on: 字符串去掉：'v-on:some-method'  ->  'some-method'*/
         name = name.replace(onRE, '')
+        /*添加v-on(或者@)绑定的事件到元素对象上*/
         addHandler(el, name, value, modifiers, false, warn)
       }
       /*三、解析其他指令*/
