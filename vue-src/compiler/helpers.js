@@ -198,7 +198,7 @@ export function addProp (el: ASTElement, name: string, value: string) {
 }
 
 /**
- * [getBindingAttr 获取绑定的属性值]
+ * [getBindingAttr 获取动态绑定的属性值]
  * @param  {[type]} el:         ASTElement    [元素描述对象]
  * @param  {[type]} name:       string        [要获取的属性的名字]
  * @param  {[type]} getStatic?: boolean       [description]
@@ -244,7 +244,7 @@ export function getBindingAttr (
 // By default it does NOT remove it from the map (attrsMap) because the map is
 // needed during codegen.
 /**
- * [getAndRemoveAttr 获取给定元素的某个属性的值]
+ * [getAndRemoveAttr 获取给定元素的某个属性的值，并且删除元素对象attrsList中的该属性]
  * @param  {[type]} el:             ASTElement    [元素描述对象]
  * @param  {[type]} name:           string        [要获取元素属性的名字]
  * @param  {[type]} removeFromMap?: boolean       [是一个可选参数，并且是一个布尔值]

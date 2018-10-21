@@ -175,18 +175,21 @@ export function parse (
   */
   platformGetTagNamespace = options.getTagNamespace || no
 
-  /*
+  /* 中置处理：
     options.modules = [
+      // klass
       {
         staticKeys: ['staticClass'],
         transformNode,
         genData
       },
+      // style
       {
         staticKeys: ['staticStyle'],
         transformNode,
         genData
       },
+      // model
       {
         preTransformNode
       }
@@ -198,10 +201,11 @@ export function parse (
     ]
   */
   transforms = pluckModuleFunction(options.modules, 'transformNode')
+  /*前置处理：预处理使用了 v-model 属性并且使用了绑定的 type 属性的 input 标签*/
   preTransforms = pluckModuleFunction(options.modules, 'preTransformNode')
-  /*
-    由于 options.modules 数组中的三个元素对象都不包含 postTransformNode 函数，所以最终 postTransforms 变量的值将是一个空数组：
-    preTransforms = []
+  /*后置处理：
+    由于 options.modules 数组中的三个元素对象都不包含 postTransformNode 函数，
+    所以最终 postTransforms 变量的值将是一个空数组：preTransforms = []
   */
   postTransforms = pluckModuleFunction(options.modules, 'postTransformNode')
 
@@ -371,11 +375,12 @@ export function parse (
       }
 
 
-      /* preTransforms 数组中的函数的作用：
-         本质上这些函数的作用与我们之前见到过的process*系列的函数相似，都是对当前元素描述对象做进一步处理。
+      /* 前置处理：预处理使用了 v-model 属性并且使用了绑定的 type 属性的 input 标签
+         作用与我们之前见到过的process*系列的函数相似：都是对当前元素描述对象做进一步处理。
       */
       // apply pre-transforms
       for (let i = 0; i < preTransforms.length; i++) {
+        /*如果通过预处理函数处理之后得到了新的元素描述对象，则使用新的元素描述对象替换当前元素描述对象(element)，否则依然使用 element 作为元素描述对象*/
         element = preTransforms[i](element, options) || element
       }
       /*处理使用了v-pre指令的元素及其子元素*/
@@ -532,7 +537,9 @@ export function parse (
         endPre(element)
       }
 
-
+      /* 后置处理：
+         作用与我们之前见到过的process*系列的函数相似：都是对当前元素描述对象做进一步处理。
+      */
       // apply post-transforms
       for (let i = 0; i < postTransforms.length; i++) {
         postTransforms[i](element, options)
@@ -1064,12 +1071,21 @@ export function processElement (element: ASTElement, options: CompilerOptions) {
   /*只有当标签没有使用 key 属性，并且标签只使用了结构化指令的情况下才被认为是“纯”的*/
   element.plain = !element.key && !element.attrsList.length
 
+  /*处理使用了ref属性的元素*/
   processRef(element)
+  /*处理使用了插槽的元素*/
   processSlot(element)
+  /*处理内置 component 组件的元素*/
   processComponent(element)
+
+  /* 中置处理：
+     作用与我们之前见到过的process*系列的函数相似：都是对当前元素描述对象做进一步处理。
+  */
   for (let i = 0; i < transforms.length; i++) {
     element = transforms[i](element, options) || element
   }
+
+  /*处理剩余属性(v-text、v-html、v-show、v-on、v-bind、v-model、v-cloak)*/
   processAttrs(element)
 }
 
