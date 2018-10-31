@@ -567,13 +567,24 @@ export function parse (
     },
 
     chars (text: string) {
+      /*当前节点必然是文本节点，并且该文本节点没有父级节点。*/
       if (!currentParent) {
         if (process.env.NODE_ENV !== 'production') {
           if (text === template) {
+           /* 一：模板中只有文本节点（整个模板的内容与文本节点的内容完全一致）
+              <template>
+                我是文本节点
+              </template>
+            */
             warnOnce(
               'Component template requires a root element, rather than just text.'
             )
           } else if ((text = text.trim())) {
+            /* 二：文本节点在根元素的外面（text 是非空的字符串）
+              <template>
+                <div>根元素内的文本节点</div>根元素外的文本节点
+              </template>
+            */
             warnOnce(
               `text "${text}" outside root element will be ignored.`
             )
@@ -581,28 +592,104 @@ export function parse (
         }
         return
       }
-      // IE textarea placeholder bug
+
       /* istanbul ignore if */
+      /* IE textarea placeholder bug
+          一、举个例子，如下 html 代码所示：
+              <div id="box">
+                <textarea placeholder="some placeholder..."></textarea>
+              </div>
+
+          二、如上 html 片段存在一个 <textarea> 标签，该标签拥有 placeholder 属性，但却没有真实的文本内容，假如我们使用如下代码获取字符串内容：
+              document.getElementById('box').innerHTML
+
+          三、在 IE 浏览器中将得到如下字符串：
+              '<textarea placeholder="some placeholder...">some placeholder...</textarea>'
+              可以看到 <textarea> 标签的 placeholder 属性的属性值被设置成了 <textarea> 的真实文本内容
+      */
       if (isIE &&
         currentParent.tag === 'textarea' &&
         currentParent.attrsMap.placeholder === text
       ) {
+        /*1、如果当前文本节点的父元素是 <textarea> 标签，
+          2、并且文本元素的内容和 <textarea> 标签的 placeholder 属性值相同，则说明此时遇到了 IE 的 bug，
+          由于只有当 <textarea> 标签没有真实文本内容时才存在这个 bug，所以这说明当前解析的文本节点原本就是不存在的，这时 chars 钩子函数会直接 return，不做后续处理。
+        */
         return
       }
+
       const children = currentParent.children
+
+      /*总结：
+        1、如果文本节点是非空白符，无论其在不在 <pre> 标签之内，只要其不在文本标签内就会对文本进行解码，否则不会解码。
+        2、如果文本节点是空白符
+          2.1、空白符存在于 <pre> 标签之内，则完全保留
+          2.2、空白符不存在于 <pre> 标签之内，则根据编译器选项配置来决定是否保留空白，并且只会保留那些不存在于开始标签之后的空白符。
+      */
+      /* 判断条件分析：
+        一、inPre || text.trim()为真
+            1、inPre 为真指的是存在于 <pre> 标签内
+            2、text.trim() 为真说明当前文本节点的内容不是空白（只要不是空白的文本并且该文本存在于文本标签之内，那么该文本就不需要进行解码操作）
+        二、inPre || text.trim()为假
+            <=> 不存在于 <pre> 标签内的空白符
+            此时 text 一定是空白符吗？难道不可能是空字符串吗？当然不可能是空字符串，因为如果 text 是空字符串则代码是不会执行 chars 钩子函数的。
+      */
       text = inPre || text.trim()
+        /* 如果当前文本节点的父节点是文本标签，那么则原封不动的保留原始文本，否则使用 decodeHTMLCached 函数对文本进行解码 
+          一、例子如下：
+              <pre>
+                &lt;div&gt;我是一个DIV&lt;/div&gt;
+              </pre>
+              我们通常会使用 <pre> 标签展示源码，所以通常会书写 html 实体。
+
+          二、解码原因如下：
+              假如不对如上 html 实体进行解码，那么最终展示在页面上的内容就是字符串 '&lt;div&gt;我是一个DIV&lt;/div&gt;' 而非 '<div>我是一个DIV</div>'。
+              
+          三、这是因为 Vue 在创建文本节点时使用的是 document.createTextNode 函数，这不同于将如上模板直接交给浏览器解析并渲染，
+              所以需要解码后将字符串 '<div>我是一个DIV</div>' 作为一个文本节点创建才行。
+        */
         ? isTextTag(currentParent) ? text : decodeHTMLCached(text)
         // only preserve whitespace if its not right after a starting tag
-        : preserveWhitespace && children.length ? ' ' : ''
+        /* 如果 preserveWhitespace 常量为真并且当前文本节点的父节点有子元素存在，则将 text 变量设置为空格字符(' ')，否则将 text 变量设置为空字符串。
+          一、其中 preserveWhitespace 常量是一个布尔值代表着是否保留空格，只有它为真的情况下才会保留空格。
+
+          二、但即使 preserveWhitespace 常量的值为真，如果当前节点的父节点没有子元素则也不会保留空格，换句话说，编译器只会保留那些 不存在于开始标签之后的空格。
+
+          三、默认情况下编译器是会保留空格的，除非你显示的指定编译器选项 preserveWhitespace 的值为 false 时才会不保留空格。
+        */
+       : preserveWhitespace && children.length ? ' ' : ''
+
+      /* 当编译器选项 preserveWhitespace 的值为 false 时，所有空白符都会被忽略，从而导致不会执行如上这段 html 代码，所以也就没有空白符节点被创建。*/
       if (text) {
         let expression
+        /* 条件成立：
+          1、当前文本节点不存在于使用 v-pre 指令的标签之内
+          2、当前文本节点不是空格字符
+          3、使用 parseText 函数成功解析当前文本节点的内容
+
+          注意：parseText 函数能够成功解析文本节点的内容说明了什么？
+                1、如下模板所示：<div>我的名字是：{{ name }}</div>
+                2、如上模板中存在一个文本节点，该节点的文本内容是字符串：'我的名字是：'，这个字符串并不是普通的字符串，它包含了 Vue 语法中的字面量表达式，
+                3、parseText 函数的作用就是用来解析这段包含了字面量表达式的文本的，如果解析成功则说明该文本节点的内容确实包含字面量表达式
+        */
         if (!inVPre && text !== ' ' && (expression = parseText(text, delimiters))) {
           children.push({
-            type: 2,
+            type: 2, /*type为2指的是文本节点解析出vue模板语法{{}}*/
             expression,
             text
           })
-        } else if (text !== ' ' || !children.length || children[children.length - 1].text !== ' ') {
+        } 
+        /* 如果 if 语句的判断条件失败，则有三种可能：
+          1、文本节点存在于使用了 v-pre 指令的标签之内
+          2、文本节点是空格字符
+          3、文本节点的文本内容通过 parseText 函数解析失败
+        */
+        /* 条件成立
+          1、文本内容不是空格，即 text !== ' '（与if中的区别是使用了 v-pre 指令）
+          2、如果文本内容是空格，但是该文本节点的父节点还没有子节点(即 !children.length)，这说明当前文本内容就是父节点的第一个子节点
+          3、如果文本内容是空格，并且该文本节点的父节点有子节点，但最后一个子节点不是空格，此时也会执行 else...if 语句块内的代码
+        */
+        else if (text !== ' ' || !children.length || children[children.length - 1].text !== ' ') {
           children.push({
             type: 3,
             text
@@ -1528,6 +1615,11 @@ function checkForAliasModel (el, value) {
 }
 
 // for script (e.g. type="x/template") or style, do not decode content
+/**
+ * [isTextTag 检测当前文本节点的父节点是否是文本标签(即 <script> 标签或 <style> 标签)]
+ * @param  {[type]}  el [当前元素描述对象]
+ * @return {Boolean}    [true/false]
+ */
 function isTextTag (el): boolean {
   return el.tag === 'script' || el.tag === 'style'
 }
