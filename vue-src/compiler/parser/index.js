@@ -732,11 +732,20 @@ export function parse (
         }
       }
     },
+    /**
+     * [comment 在解析 html 字符串时每次遇到 注释节点 时就会调用该函数]
+     * @param  {[type]} text: string        [当前解析的注释节点]
+     * @return {[type]}                     [description]
+     */
     comment (text: string) {
+      /*
+        解析器是否会解析并保留注释节点，是由 shouldKeepComment 编译器选项决定的，开发者可以在创建 Vue 实例的时候通过设置 comments 选项的值来控制编译器的 shouldKeepComment 选项。
+        默认情况下 comments 选项的值为 false，即不保留注释，假如将其设置为 true
+      */
       currentParent.children.push({
-        type: 3,
+        type: 3, /* type类型为 3 ，普通文本节点type也为3；type为2指的是文本节点解析出vue模板语法{{}}*/
         text,
-        isComment: true
+        isComment: true /*注释节点的元素描述对象拥有 isComment 属性，并且该属性的值为 true，目的就是用来与普通文本节点作区分的。*/
       })
     }
   })
