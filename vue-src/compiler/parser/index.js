@@ -548,24 +548,59 @@ export function parse (
         postTransforms[i](element, options)
       }
     },
-
+    /**
+     * [end 在解析 html 字符串时每次遇到 结束标签 时就会调用该函数]
+     * @return {[type]} [description]
+     */
     end () {
       // remove trailing whitespace
+      /*去除当前元素最后一个空白子节点：
+      一、chars 钩子函数时了解到：preserveWhitespace 只会保留那些不在开始标签之后的空格(说空白也没问题)，
+          所以当空白作为标签的最后一个子节点存在时，也会被保留。
+      二、如下代码所示：
+          <div><span>test</span> <!-- 空白占位 -->  </div>
+          如上代码中 <span> 标签的结束标签与 <div> 标签的结束标签之间存在一段空白，这段空白将会被保留。
+      三、但是这段空白的保留对于我们编写代码并没有什么益处，我们在编写 html 代码的时候经常会为了可读性将代码格式化为多行，
+          如果这段空白被保留那么就可能对布局产生影响，尤其是对行内元素的影响。
+          为了消除这些影响带来的问题，好的做法是将它们去掉，而如上 end 钩子函数中高亮的代码就是用来完成这个工作的。
+      */
       const element = stack[stack.length - 1]
       const lastNode = element.children[element.children.length - 1]
       if (lastNode && lastNode.type === 3 && lastNode.text === ' ' && !inPre) {
         element.children.pop()
       }
+
       // pop stack
-      /*
+      /* 修正了当前正在解析的元素的父级元素：
         每当遇到一个非一元标签的结束标签时，都会回退 currentParent 变量的值为之前的值，
-        这样我们就修正了当前正在解析的元素的父级元素。
+        一、假如现在有如下html模板：
+          <div>
+            <span></span>
+            <p>
+              <a></a>
+            </p>
+          </div>
+
+        二、分析currentParent、stack的变化：
+          1、div 开始：currentParent = div;  stack=[ div ]
+          2、span开始：currentParent = span; stack=[ div, span ]
+          3、span结束：currentParent = div;  stack=[ div ]
+          4、p开始：   currentParent = p;    stack=[ div, p ]
+          5、a开始：   currentParent = a;    stack=[ div, p, a ]
+          6、a结束：   currentParent = p;    stack=[ div, p ]
+          7、p结束：   currentParent = div;  stack=[ div ]
+          7、div结束： currentParent = null; stack=[]
       */
       stack.length -= 1
       currentParent = stack[stack.length - 1]
+      /*每当遇到一个标签的结束标签时，或遇到一元标签时都会调用该方法“闭合”标*/
       endPre(element)
     },
-
+    /**
+     * [chars 在解析 html 字符串时每次遇到 文本节点 时就会调用该函数]
+     * @param  {[type]} text: string        [当前解析的文本]
+     * @return {[type]}                     [currentParent.children添加值]
+     */
     chars (text: string) {
       /*当前节点必然是文本节点，并且该文本节点没有父级节点。*/
       if (!currentParent) {
