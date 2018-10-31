@@ -539,6 +539,9 @@ export function parse (
 
       /* 后置处理：
          作用与我们之前见到过的process*系列的函数相似：都是对当前元素描述对象做进一步处理。
+
+         注意：实际上 postTransforms 是一个空数组，因为目前还没有任何后置处理的钩子函数。
+               这里只是暂时提供一个用于后置处理的出口，当有需要的时候可以使用。
       */
       // apply post-transforms
       for (let i = 0; i < postTransforms.length; i++) {
