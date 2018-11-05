@@ -189,12 +189,18 @@ export function defineReactive (
       const value = getter ? getter.call(obj) : val
       // new Watch() -> Dep.target = new Watch() -> 取值触发get
       if (Dep.target) {
-        // 在 get 中收集当前属性的依赖
+        /* 收集当前对象属性的依赖：在 get 中收集数据对象{ a: { w: 1 } }当前属性a的依赖 */
         dep.depend()
         if (childOb) {
-          // 对子属性进行依赖收集: (子属性是对象或数组的情况: { a: { w: 1 } }、{ a: [{ w: [1] }, [1], 3] })
+          /* 对子属性进行依赖收集: 
+             1、子属性是对象的情况: { a: { w: 1 } }。在此处无作用，但是vue源码中Vue.$set、Vue.$del触发响应
+             2、子属性是数组的情况: { a: [{ w: [1] }, [1], 3] }。childOb === data.a.__ob__，对数组进行依赖收集
+          */
           childOb.dep.depend()
-          // 对子属性进行依赖收集: (子属性是数组深层嵌套的情况: { a: [{ w: [1] }, [1], 3] })
+          /* 对子属性值是数组进行依赖收集: { a: [{ w: [1] }, [1], 3] }
+             1、数组成员是对象的情况: { w: [1] }。在此处无作用，但是vue源码中Vue.$set、Vue.$del触发响应
+             2、数组成员是数组的情况: [1]。e.__ob__.dep.addSub()，对数组进行依赖收集
+          */
           if (Array.isArray(value)) {
             dependArray(value)
           }
@@ -242,9 +248,12 @@ export function defineReactive (
 function dependArray (value: Array<any>) {
   for (let e, i = 0, l = value.length; i < l; i++) {
     e = value[i]
-    // 成员是对象或者数组进行依赖收集: { w: 1 }、[{ w: [1] }, [1], 3]
+    /* 数组成员是对象或者数组进行依赖收集: { a: [{ w: [1] }, [1], 3] }
+       1、数组成员是对象的情况: { w: [1] }。在此处无作用，但是vue源码中Vue.$set、Vue.$del触发响应
+       2、数组成员是数组的情况: [1]。e.__ob__.dep.addSub()，对数组进行依赖收集
+    */
     e && e.__ob__ && e.__ob__.dep.depend()
-    // 成员是数组深层嵌套的情况：递归执行该方法继续深层依赖收集[{ w: [1] }, [1], 3]
+    /* 数组成员是数组：递归执行该方法继续深层依赖收集[{ w: [1] }, [1], 3] */
     if (Array.isArray(e)) {
       dependArray(e)
     }
