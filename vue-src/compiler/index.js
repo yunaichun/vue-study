@@ -26,11 +26,18 @@ export const createCompiler = createCompilerCreator(function baseCompile (
   template: string, // 字符串模板
   options: CompilerOptions // 选项参数
 ): CompiledResult {
-  /*调用 parse 函数将字符串模板解析成抽象语法树(AST)*/
+  /* 调用 parse 函数将字符串模板解析成抽象语法树(AST) ：
+     parse 会用正则等方式解析 template 模板中的指令、class、style等数据，形成AST
+  */
   const ast = parse(template.trim(), options)
-  /*调用 optimize 函数优化 ast*/
+  /* 调用 optimize 函数优化 ast：
+     optimize 的主要作用是标记 static 静态节点，这是 Vue 在编译过程中的一处优化，后面当 update 更新界面时，会有一个 patch 的过程，
+     diff 算法会直接跳过静态节点，从而减少了比较的过程，优化了 patch 的性能。
+     */
   optimize(ast, options)
-  /*调用 generate 函数将 ast 编译成渲染函数*/
+  /* 调用 generate 函数将 ast 编译成渲染函数：
+     generate 是将 AST 转化成 render function 字符串的过程，得到结果是 render 的字符串以及 staticRenderFns 字符串。
+  */
   const code = generate(ast, options)
   return {
     ast, /*抽象语法树(ast)*/
@@ -38,7 +45,7 @@ export const createCompiler = createCompilerCreator(function baseCompile (
       注意以下提到的渲染函数，都以字符串的形式存在，
       因为真正变成函数的过程是在 compileToFunctions 中使用 new Function() 来完成的
     */
-    render: code.render, /*渲染函数(render)*/
-    staticRenderFns: code.staticRenderFns /*静态渲染函数(staticRenderFns)*/
+    render: code.render, /*渲染函数(render)：字符串形式*/
+    staticRenderFns: code.staticRenderFns /*静态渲染函数(staticRenderFns)：字符串形式*/
   }
 })
