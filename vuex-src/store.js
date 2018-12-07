@@ -11,34 +11,54 @@ export class Store {
     // Auto install if it is not done yet and `window` has `Vue`.
     // To allow users to avoid auto-installation in some cases,
     // this code should be placed here. See #731
-    /*若处于浏览器环境下且加载过Vue，则执行install方法*/
+    /*局部变量 Vue 没有赋值，但是处于浏览器环境下且加载过Vue：则执行install方法*/
     if (!Vue && typeof window !== 'undefined' && window.Vue) {
       install(window.Vue)
     }
 
+
+    /*一、环境判断*/
     if (process.env.NODE_ENV !== 'production') {
+      /*Vue.use(Vuex) 必须在 new Vuex.Store之前，即必须先装载vuex*/
       assert(Vue, `must call Vue.use(Vuex) before creating a store instance.`)
+      /*Promise 必须要支持 */
       assert(typeof Promise !== 'undefined', `vuex requires a Promise polyfill in this browser.`)
+      /*Vuex.store 必须用 new 实例出来*/
       assert(this instanceof Store, `store must be called with the new operator.`)
     }
 
+
+    /*二、数据初始化、module树构造*/
     const {
       plugins = [],
       strict = false
     } = options
 
     // store internal state
+    /*是否在进行提交状态标识*/
     this._committing = false
+    /*acitons 操作对象*/
     this._actions = Object.create(null)
     this._actionSubscribers = []
+    /*mutations 操作对象*/
     this._mutations = Object.create(null)
+    /*封装后的 getters 集合对象*/
     this._wrappedGetters = Object.create(null)
+    /*Vuex 支持 store 分模块传入，存储分析后的 modules
+      ModuleCollection主要将传入的options对象整个构造为一个module对象，
+      并循环调用 this.register([key], rawModule, false) 为其中的 modules 属性进行模块注册，
+      使其都成为module对象，最后options对象被构造成一个完整的组件树。
+    */
     this._modules = new ModuleCollection(options)
+    /*模块命名空间 map*/
     this._modulesNamespaceMap = Object.create(null)
+    /*订阅函数集合，Vuex提供了 subscribe 功能*/
     this._subscribers = []
+    /*Vue 组件用于 watch 监视变化*/
     this._watcherVM = new Vue()
 
     // bind commit and dispatch to self
+    /*三、封装替换原型中的 dispatch 和 commit 方法，将this指向当前store对象*/
     const store = this
     const { dispatch, commit } = this
     this.dispatch = function boundDispatch (type, payload) {
