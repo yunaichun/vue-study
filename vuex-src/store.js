@@ -1,3 +1,4 @@
+/*installl vuex：使 vue 所有组件可以通过 this.$store 获取到 store 实例*/
 import applyMixin from './mixin'
 import devtoolPlugin from './plugins/devtool'
 import ModuleCollection from './module/module-collection'
@@ -10,6 +11,7 @@ export class Store {
     // Auto install if it is not done yet and `window` has `Vue`.
     // To allow users to avoid auto-installation in some cases,
     // this code should be placed here. See #731
+    /*若处于浏览器环境下且加载过Vue，则执行install方法*/
     if (!Vue && typeof window !== 'undefined' && window.Vue) {
       install(window.Vue)
     }
@@ -467,7 +469,9 @@ function unifyObjectStyle (type, payload, options) {
   return { type, payload, options }
 }
 
+/* Vue.use(Vuex)实现：Vuex是一个对象，会执行 vuex 插件的 install 方法*/
 export function install (_Vue) {
+  /*只允许一次 Vue.use(Vuex) */
   if (Vue && _Vue === Vue) {
     if (process.env.NODE_ENV !== 'production') {
       console.error(
@@ -476,6 +480,8 @@ export function install (_Vue) {
     }
     return
   }
+  /*若是首次加载，将局部 Vue 变量赋值为全局的 Vue 对象，并执行 applyMixin 方法*/
   Vue = _Vue
+  /*installl vuex：使 vue 所有组件可以通过 this.$store 获取到 store 实例*/
   applyMixin(Vue)
 }
