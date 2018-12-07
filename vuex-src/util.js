@@ -6,6 +6,7 @@
  * @param {Function} f
  * @return {*}
  */
+/*对数组 list 执行 filter 过滤，过滤函数是 f 函数，返回过滤后的第一项*/
 export function find (list, f) {
   return list.filter(f)[0]
 }
@@ -21,11 +22,14 @@ export function find (list, f) {
  */
 export function deepCopy (obj, cache = []) {
   // just return if obj is immutable value
+  /*异常处理：普通类型，或者为对象null*/
   if (obj === null || typeof obj !== 'object') {
     return obj
   }
 
   // if obj is hit, it is in circular structure
+  /*直接返回：cache = [{original: obj, copy: obj}]*/
+  /*cache.filter(function(c) { c.original === obj; })[0]*/
   const hit = find(cache, c => c.original === obj)
   if (hit) {
     return hit.copy
@@ -39,28 +43,47 @@ export function deepCopy (obj, cache = []) {
     copy
   })
 
+  /*从空对象或者空数组开始递归调用*/
   Object.keys(obj).forEach(key => {
     copy[key] = deepCopy(obj[key], cache)
   })
 
   return copy
 }
+// 深度拷贝
+function myDeepCopy(parent) {
+  let obj = Array.isArray(parent) ? [] : {};
+  for (let key in parent) {
+     if (parent.hasOwnProperty(key)) {
+          if (typeof parent[key] === 'object') {
+            obj[key] = deepCopy(parent[key]);
+          } else {
+            obj[key] = parent[key];
+          }
+     }
+  }
+  return obj;
+}
 
 /**
  * forEach for object
  */
+/*遍历 obj 对象的每一项，执行 fn 函数*/
 export function forEachValue (obj, fn) {
   Object.keys(obj).forEach(key => fn(obj[key], key))
 }
 
+/*是否是 Object 判断*/
 export function isObject (obj) {
   return obj !== null && typeof obj === 'object'
 }
 
+/*是否是 Promise 判断*/
 export function isPromise (val) {
   return val && typeof val.then === 'function'
 }
 
+/*不满足 condition 打印 msg 信息*/
 export function assert (condition, msg) {
   if (!condition) throw new Error(`[vuex] ${msg}`)
 }
