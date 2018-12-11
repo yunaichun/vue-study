@@ -101,29 +101,48 @@ export class Store {
     }
   }
 
+  /**
+   * [commit commit方法触发mutations]
+   * @param  {[type]} _type    [类型]
+   * @param  {[type]} _payload [载荷]
+   * @param  {[type]} _options []
+   * @return {[type]}          [description]
+   */
   commit (_type, _payload, _options) {
+    /*统一commit传入参数：
+      1、以载荷形式分发（默认提取为type、payload）
+         store.commit('incrementAsync', { amount: 10 })
+      2、以对象形式分发
+         store.commit({ type: 'incrementAsync', amount: 10 })
+    */
     // check object-style commit
     const {
       type,
       payload,
-      options
+      options /*以对象形式分发时，第二个参数为options*/
     } = unifyObjectStyle(_type, _payload, _options)
 
     const mutation = { type, payload }
+    /*根据 type 获取对应的 mutations*/
     const entry = this._mutations[type]
+    /*不存在此 mutation type，报错不再往下执行*/
     if (!entry) {
       if (process.env.NODE_ENV !== 'production') {
         console.error(`[vuex] unknown mutation type: ${type}`)
       }
       return
     }
+    /*1、存在此action type：专用修改state方法，其他修改state方法均是非法修改*/
     this._withCommit(() => {
+      /*批量触发mutation处理函数*/
       entry.forEach(function commitIterator (handler) {
         handler(payload)
       })
     })
+    /*2、存在此action type：批量触发mutation处理函数后，通知所有_subscribers（订阅函数）本次操作的mutation对象以及当前的state状态*/
     this._subscribers.forEach(sub => sub(mutation, this.state))
 
+    /*如果传入了已经移除的silent选项则进行提示警告*/
     if (
       process.env.NODE_ENV !== 'production' &&
       options && options.silent
@@ -155,9 +174,9 @@ export class Store {
     } = unifyObjectStyle(_type, _payload)
 
     const action = { type, payload }
-    /*根据type 获取对应的 actions*/
+    /*根据 type 获取对应的 actions*/
     const entry = this._actions[type]
-    /*不存在此action type，报错不再往下执行*/
+    /*不存在此 action type，报错不再往下执行*/
     if (!entry) {
       if (process.env.NODE_ENV !== 'production') {
         console.error(`[vuex] unknown action type: ${type}`)
@@ -229,10 +248,20 @@ export class Store {
     resetStore(this, true)
   }
 
+  /**
+   * [_withCommit 专用修改state方法，其他修改state方法均是非法修改]
+   * @param  {Function} fn [mutation函数：执行state的修改操作]
+   * @return {[type]}      [description]
+   */
   _withCommit (fn) {
+    /*缓存this._committing状态*/
     const committing = this._committing
+    /*回调函数执行前：修改this._committing状态为true*/
+    /*进行本次提交，若不设置为true，直接修改state，strict模式下，Vuex将会产生非法修改state的警告*/
     this._committing = true
+    /*mutation函数：执行state的修改操作*/
     fn()
+    /*回调函数执行后：重置this._committing状态为初始值*/
     this._committing = committing
   }
 }
@@ -507,7 +536,7 @@ function getNestedState (state, path) {
 function unifyObjectStyle (type, payload, options) {
   /*以对象形式分发：store.dispatch({ type: 'incrementAsync', amount: 10 })*/
   if (isObject(type) && type.type) {
-    /*假如还有第二个参数的话为options*/
+    /*以对象形式分发时，第二个参数为options*/
     options = payload
     /*从第一个参数中提取出type*/
     payload = type
