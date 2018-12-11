@@ -135,7 +135,19 @@ export class Store {
     }
   }
 
+  /**
+   * [dispatch dispatch方法触发actions]
+   * @param  {[type]} _type    [类型]
+   * @param  {[type]} _payload [载荷]
+   * @return {[Promise]}       [返回Promise]
+   */
   dispatch (_type, _payload) {
+    /*统一dispatch传入参数：
+      1、以载荷形式分发（默认提取为type、payload）
+         store.dispatch('incrementAsync', { amount: 10 })
+      2、以对象形式分发
+         store.dispatch({ type: 'incrementAsync', amount: 10 })
+    */
     // check object-style dispatch
     const {
       type,
@@ -143,7 +155,9 @@ export class Store {
     } = unifyObjectStyle(_type, _payload)
 
     const action = { type, payload }
+    /*根据type 获取对应的 actions*/
     const entry = this._actions[type]
+    /*不存在此action type，报错不再往下执行*/
     if (!entry) {
       if (process.env.NODE_ENV !== 'production') {
         console.error(`[vuex] unknown action type: ${type}`)
@@ -151,8 +165,10 @@ export class Store {
       return
     }
 
+    /*存在此action type，逐个执行_actionSubscribers*/
     this._actionSubscribers.forEach(sub => sub(action, this.state))
 
+    /*返回Promise*/
     return entry.length > 1
       ? Promise.all(entry.map(handler => handler(payload)))
       : entry[0](payload)
@@ -475,17 +491,36 @@ function getNestedState (state, path) {
     : state
 }
 
+/**
+ * [unifyObjectStyle 统一dispatch、commit参数]
+ * @param  {[type]} type    [类型]
+ * @param  {[type]} payload [载荷]
+ * @param  {[type]} options [值为payload]
+ * @return {[type]}         [description]
+ */
+/*统一dispatch传入参数：
+  1、以载荷形式分发（默认提取为type、payload）
+     store.dispatch('incrementAsync', { amount: 10 })
+  2、以对象形式分发
+     store.dispatch({ type: 'incrementAsync', amount: 10 })
+*/
 function unifyObjectStyle (type, payload, options) {
+  /*以对象形式分发：store.dispatch({ type: 'incrementAsync', amount: 10 })*/
   if (isObject(type) && type.type) {
+    /*假如还有第二个参数的话为options*/
     options = payload
+    /*从第一个参数中提取出type*/
     payload = type
+    /*从第一个参数中提取出type*/
     type = type.type
   }
 
   if (process.env.NODE_ENV !== 'production') {
+    /*假如分理出的t ype不是string类型，报错*/
     assert(typeof type === 'string', `expects string as the type, but found ${typeof type}.`)
   }
 
+  /*最终返回出对象：包含type、payload、options属性*/
   return { type, payload, options }
 }
 
