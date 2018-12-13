@@ -44,10 +44,11 @@ export class Store {
     this._mutations = Object.create(null)
     /*封装后的 getters 集合对象*/
     this._wrappedGetters = Object.create(null)
-    /*Vuex 支持 store 分模块传入，存储分析后的 modules
-      ModuleCollection主要将实例store传入的options对象整个构造为一个module对象，
-      并循环调用 this.register([key], rawModule, false) 为其中的 modules 属性进行模块注册，
-      使其都成为module对象，最后options对象被构造成一个完整的组件树。
+    /*根据Store传入的配置项，构建模块 module 树，整棵 module 树存放在 this.root 属性上：
+      1、Vuex 支持 store 分模块传入，存储分析后的 modules；
+      2、ModuleCollection 主要将实例 store 传入的 options 对象整个构造为一个 module 对象，
+         并循环调用 this.register([key], rawModule, false) 为其中的 modules 属性进行模块注册，
+         使其都成为 module 对象，最后 options 对象被构造成一个完整的组件树。
     */
     this._modules = new ModuleCollection(options)
     /*模块命名空间 map*/

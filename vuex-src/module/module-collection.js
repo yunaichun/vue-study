@@ -1,10 +1,55 @@
 import Module from './module'
 import { assert, forEachValue } from '../util'
 
-/*Vuex 支持 store 分模块传入，存储分析后的 modules
-  ModuleCollection主要将实例store传入的options对象整个构造为一个module对象，
-  并循环调用 this.register([key], rawModule, false) 为其中的 modules 属性进行模块注册，
-  使其都成为module对象，最后options对象被构造成一个完整的组件树。
+/*根据Store传入的配置项，构建模块 module 树，整棵 module 树存放在 this.root 属性上：
+  1、Vuex 支持 store 分模块传入，存储分析后的 modules；
+  2、ModuleCollection 主要将实例 store 传入的 options 对象整个构造为一个 module 对象，
+     并循环调用 this.register([key], rawModule, false) 为其中的 modules 属性进行模块注册，
+     使其都成为 module 对象，最后 options 对象被构造成一个完整的组件树。
+  3、假设实例 Store 如下：
+       const store = new Vuex.Store({
+        modules: {
+          account: {
+            namespaced: true,
+
+            // 模块内容（module assets）
+            state: { ... }, // 模块内的状态已经是嵌套的了，使用 `namespaced` 属性不会对其产生影响
+            getters: {
+              isAdmin () { ... } // -> getters['account/isAdmin']
+            },
+            actions: {
+              login () { ... } // -> dispatch('account/login')
+            },
+            mutations: {
+              login () { ... } // -> commit('account/login')
+            },
+
+            // 嵌套模块
+            modules: {
+              // 继承父模块的命名空间
+              myPage: {
+                state: { ... },
+                getters: {
+                  profile () { ... } // -> getters['account/profile']
+                }
+              },
+
+              // 进一步嵌套命名空间
+              posts: {
+                namespaced: true,
+
+                state: { ... },
+                getters: {
+                  popular () { ... } // -> getters['account/posts/popular']
+                }
+              }
+            }
+          }
+        }
+      })
+    则 var test = new ModuleCollection(options) 之后为：
+    1、test.root = newModule(options)
+    2、test.root._children[account] = newModule(options2)
 */
 export default class ModuleCollection {
   /*rawRootModule 为实例store传入的options对象*/
@@ -35,56 +80,88 @@ export default class ModuleCollection {
     } 
     /*子模块*/
     else {
+      /*获取当前模块的父模块：path.slice(0, -1) 除去 path 最后一项，即自身；此时 path 最后一项为 当前 path 的父级*/
       const parent = this.get(path.slice(0, -1))
+      /*将当前模块添加至父模块的 _children 属性中*/
       parent.addChild(path[path.length - 1], newModule)
     }
 
     // register nested modules
+    /*options配置中包含modules选项，对子模块循环注册*/
     if (rawModule.modules) {
+      /*循环遍历modules：执行回调，传入 modules 的 value 和 key 值*/
       forEachValue(rawModule.modules, (rawChildModule, key) => {
+        /*这里对 path 操作了：path.concat(key)*/
         this.register(path.concat(key), rawChildModule, runtime)
       })
     }
   }
 
+  /*根据当前传入 path（除去最后一项，即自身；此时 path 最后一项为 当前 path 的父级），获取父模块*/
   get (path) {
+    /*reduce 传入初始值 this.root，为根模块*/
     return path.reduce((module, key) => {
-      return module.getChild(key)
+      /*归并思想：从根模块 module 开始获取其子模块*/
+      return module.getChild(key) /*此时key即为 path 的每一项*/
     }, this.root)
   }
 
+  /*获取当前传入 path 对应的 module 模块的命名空间*/
   getNamespace (path) {
+    /*获取根模块*/
     let module = this.root
+    /*循环遍历 path 数组，返回最终拼接的 path 每一项*/
     return path.reduce((namespace, key) => {
       module = module.getChild(key)
       return namespace + (module.namespaced ? key + '/' : '')
     }, '')
   }
 
+  /*更新模块 module 树的配置*/
   update (rawRootModule) {
     update([], this.root, rawRootModule)
   }
   
+  /*移除当前传入 path 对应的 module 模块*/
   unregister (path) {
+    /*获取当前path的父模块：path.slice(0, -1) 除去 path 最后一项，即自身；此时 path 最后一项为 当前 path 的父级*/
     const parent = this.get(path.slice(0, -1))
+    /*获取 path 数组最后一项*/
     const key = path[path.length - 1]
+    /* 
+      1、当前 path 模块的 runtime 值为 false 直接返回;
+      2、注册模块是，runtime默认为 true
+    */
     if (!parent.getChild(key).runtime) return
 
+    /*移除当前模块：即将其父模块的 _children 删除掉当前模块*/
     parent.removeChild(key)
   }
 }
 
+/**
+ * [update 更新模块 module 树的配置]
+ * @param  {[Array]}  path         [命名空间，更新时传入空数组 []]
+ * @param  {[Object]} targetModule [已构建的 module 树，更新时传入 this.root]
+ * @param  {[Object]} newModule    [新的 Store 的 options 配置项]
+ * @return {[type]}              [description]
+ */
 function update (path, targetModule, newModule) {
+  /*更新store传入的options对象中的getters、mutations、actions传入的值的类型的判断*/
   if (process.env.NODE_ENV !== 'production') {
     assertRawModule(path, newModule)
   }
 
   // update target module
+  /*做了四件事：更新命名空间、更新 actions、更新 mutations、更新 getters*/
   targetModule.update(newModule)
 
   // update nested modules
+  /*更新嵌套 modules*/
   if (newModule.modules) {
+    /*循环遍历 modules*/
     for (const key in newModule.modules) {
+      /*如果之前 modules 中不含有此key 项，直接返回*/
       if (!targetModule.getChild(key)) {
         if (process.env.NODE_ENV !== 'production') {
           console.warn(
@@ -94,10 +171,11 @@ function update (path, targetModule, newModule) {
         }
         return
       }
+      /*递归调用更新*/
       update(
-        path.concat(key),
-        targetModule.getChild(key),
-        newModule.modules[key]
+        path.concat(key), /*传入当前 module 的 path*/
+        targetModule.getChild(key), /*传入当前模块已构建的 module 树*/
+        newModule.modules[key] /*传入当前模块更新的配置项*/
       )
     }
   }
