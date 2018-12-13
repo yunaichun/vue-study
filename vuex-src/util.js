@@ -70,6 +70,7 @@ function myDeepCopy(parent) {
  */
 /*遍历 obj 对象的每一项，执行 fn 函数*/
 export function forEachValue (obj, fn) {
+  /*fn 函数传入obj的value + key*/
   Object.keys(obj).forEach(key => fn(obj[key], key))
 }
 
@@ -83,7 +84,7 @@ export function isPromise (val) {
   return val && typeof val.then === 'function'
 }
 
-/*不满足 condition 打印 msg 信息*/
+/*condition 为 false 时打印 msg 信息*/
 export function assert (condition, msg) {
   if (!condition) throw new Error(`[vuex] ${msg}`)
 }

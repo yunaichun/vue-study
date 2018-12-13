@@ -45,7 +45,7 @@ export class Store {
     /*封装后的 getters 集合对象*/
     this._wrappedGetters = Object.create(null)
     /*Vuex 支持 store 分模块传入，存储分析后的 modules
-      ModuleCollection主要将传入的options对象整个构造为一个module对象，
+      ModuleCollection主要将实例store传入的options对象整个构造为一个module对象，
       并循环调用 this.register([key], rawModule, false) 为其中的 modules 属性进行模块注册，
       使其都成为module对象，最后options对象被构造成一个完整的组件树。
     */
