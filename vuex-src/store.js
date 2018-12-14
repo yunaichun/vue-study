@@ -72,11 +72,17 @@ export class Store {
     // strict mode
     this.strict = strict
 
+    /*获取根组件的state*/
     const state = this._modules.root.state
 
     // init root module.
     // this also recursively registers all sub-modules
     // and collects all module getters inside this._wrappedGetters
+    /*module 安装
+      1、初始化组件树根组件、
+      2、注册所有子组件、
+      3、并将其中所有的getters存储到this._wrappedGetters属性中
+    */
     installModule(this, state, [], this._modules.root)
 
     // initialize the store vm, which is responsible for the reactivity
@@ -267,6 +273,279 @@ export class Store {
   }
 }
 
+/**
+ * [unifyObjectStyle 统一dispatch、commit参数]
+ * @param  {[String/Object]}   type    [类型]
+ * @param  {[Object]}          payload [载荷]
+ * @param  {[type]}            options [值为payload]
+ * @return {[type]}                    [description]
+ */
+function unifyObjectStyle (type, payload, options) {
+  /*统一dispatch传入参数：
+    1、以载荷形式分发（默认提取为type、payload）
+       store.dispatch('incrementAsync', { amount: 10 })
+    2、以对象形式分发
+       store.dispatch({ type: 'incrementAsync', amount: 10 })
+  */
+
+  /*以对象形式分发：store.dispatch({ type: 'incrementAsync', amount: 10 })*/
+  if (isObject(type) && type.type) {
+    /*以对象形式分发时，第二个参数为options*/
+    options = payload
+    /*从第一个参数中提取出type*/
+    payload = type
+    /*从第一个参数中提取出type*/
+    type = type.type
+  }
+
+  if (process.env.NODE_ENV !== 'production') {
+    /*假如分理出的t ype不是string类型，报错*/
+    assert(typeof type === 'string', `expects string as the type, but found ${typeof type}.`)
+  }
+
+  /*最终返回出对象：包含type、payload、options属性*/
+  return { type, payload, options }
+}
+
+/**
+ * [installModule module 安装：1、设置当前 module 为响应式、2、设置当前 module 局部的 dispatch、commit 方法以及 getters 和 state、3、]
+ * @param  {[Class]}   store      [store 实例 this ]
+ * @param  {[Object]}  rootState  [根组件 state]
+ * @param  {[Array]}   path       [模块路径：初始为空数组]
+ * @param  {[Module]}  module     [根组件的 module：初始为 this._modules.root]
+ * @param  {[Boolean]} hot        [是否是热更新]
+ * @return {[type]}               [description]
+ */
+function installModule (store, rootState, path, module, hot) {
+  /*根 module 模块路径为空数组*/
+  const isRoot = !path.length
+
+  /*根据当前传入 path，获取对应的 module 模块的命名空间*/
+  const namespace = store._modules.getNamespace(path)
+
+  // register in namespace map
+  /*如果当前 module 的 namespaced 属性设置为 true */
+  if (module.namespaced) {
+    /*将命名空间 namespace 字符串路径存入 Store*/
+    store._modulesNamespaceMap[namespace] = module
+  }
+
+  // set state
+  /*非根 module 模块 并且 非热更新：设置当前 moduleName 为响应式，数据为当前 module 的 state*/
+  if (!isRoot && !hot) {
+    /*根据当前传入 path（除去最后一项，即自身；此时 path 最后一项为 当前 path 的父级），获取父模块*/
+    const parentState = getNestedState(rootState, path.slice(0, -1))
+    /*当前 module 的名称*/
+    const moduleName = path[path.length - 1]
+    /*非根 module 设置 state*/
+    store._withCommit(() => {
+      /*parentState：父 module；moduleName：当前 module 名称；module.state：当前 module 的状态*/
+      Vue.set(parentState, moduleName, module.state)
+    })
+  }
+
+  /*定义 local 变量和 module.context 的值：设置当前 module 局部的 dispatch、commit 方法以及 getters 和 state（由于 namespace 的存在需要做兼容处理）*/
+  const local = module.context = makeLocalContext(store, namespace, path)
+
+  module.forEachMutation((mutation, key) => {
+    const namespacedType = namespace + key
+    registerMutation(store, namespacedType, mutation, local)
+  })
+
+  module.forEachAction((action, key) => {
+    const type = action.root ? key : namespace + key
+    const handler = action.handler || action
+    registerAction(store, type, handler, local)
+  })
+
+  module.forEachGetter((getter, key) => {
+    const namespacedType = namespace + key
+    registerGetter(store, namespacedType, getter, local)
+  })
+
+  module.forEachChild((child, key) => {
+    installModule(store, rootState, path.concat(key), child, hot)
+  })
+}
+
+/**
+ * [getNestedState 根据当前传入 path 获取模块 module 的 state]
+ * @param  {[Object]} state [根节点的 state ]
+ * @param  {[Array]}  path  [当前传入 module 的路径]
+ * @return {[Object]}       [返回]
+ */
+function getNestedState (state, path) {
+  return path.length
+    ? path.reduce((state, key) => state[key], state) /*非根 module： 根据 path 层级定位到*/
+    : state /*根 module：根 module 的 state*/
+}
+
+/**
+ * make localized dispatch, commit, getters and state
+ * if there is no namespace, just use root ones
+ */
+/**
+ * [makeLocalContext 为该module设置局部的 dispatch、commit方法以及getters和state]
+ * @param  {[Class]}  store     [store 实例 this ]
+ * @param  {[String]} namespace [当前 module 的命名空间]
+ * @param  {[Array]}  path      [模块路径：初始为空数组]
+ * @return {[type]}             [description]
+ */
+function makeLocalContext (store, namespace, path) {
+  /*没有命名空间*/
+  const noNamespace = namespace === ''
+
+  const local = {
+    /*设置 module 局部 dispatch：兼容次 module 是否有 namespace */
+    dispatch: noNamespace ? store.dispatch : (_type, _payload, _options) => {
+      /*统一dispatch参数*/
+      const args = unifyObjectStyle(_type, _payload, _options)
+      const { payload, options } = args
+      let { type } = args
+
+      /*如果不存在 options 或者 options.root = false/undefined*/
+      if (!options || !options.root) {
+        /*修改了 type，拼接了 namespace*/
+        type = namespace + type
+        /*如果 store._actions 没有此 type 报错*/
+        if (process.env.NODE_ENV !== 'production' && !store._actions[type]) {
+          console.error(`[vuex] unknown local action type: ${args.type}, global type: ${type}`)
+          return
+        }
+      }
+
+      /*对 store.dispatch 做了一层包装*/
+      return store.dispatch(type, payload)
+    },
+
+    /*设置 module 局部 commit：兼容次 module 是否有 namespace */
+    commit: noNamespace ? store.commit : (_type, _payload, _options) => {
+      /*统一commit参数*/
+      const args = unifyObjectStyle(_type, _payload, _options)
+      const { payload, options } = args
+      let { type } = args
+
+      /*如果不存在 options 或者 options.root = false/undefined*/
+      if (!options || !options.root) {
+        /*修改了 type，拼接了 namespace*/
+        type = namespace + type
+        /*如果 store._mutations 没有此 type 报错*/
+        if (process.env.NODE_ENV !== 'production' && !store._mutations[type]) {
+          console.error(`[vuex] unknown local mutation type: ${args.type}, global type: ${type}`)
+          return
+        }
+      }
+
+      /*对 store.commit 做了一层包装*/
+      store.commit(type, payload, options)
+    }
+  }
+
+  // getters and state object must be gotten lazily
+  // because they will be changed by vm update
+  Object.defineProperties(local, {
+    /*设置 module 局部 getters：兼容次 module 是否有 namespace */
+    getters: {
+      get: noNamespace
+        ? () => store.getters
+        : () => makeLocalGetters(store, namespace) /*对 store.getters 做了一层包装*/
+    },
+    /*设置 module 局部 state */
+    state: {
+      /*根据当前传入 path 获取模块 module 的 state*/
+      get: () => getNestedState(store.state, path)
+    }
+  })
+
+  return local
+}
+
+/**
+ * [makeLocalGetters 有命名空间的情况：设置 module 局部的 getters（对 store.getters 做了一层包装） ]
+ * @param  {[Class]}  store       [store 实例 this ]
+ * @param  {[String]} namespace   [当前 module 的命名空间]
+ * @return {[Object]}             [gettersProxy]
+ */
+function makeLocalGetters (store, namespace) {
+  const gettersProxy = {}
+
+  /*命名空间 namespace 的长度*/
+  const splitPos = namespace.length
+  /*循环遍历 store 的getters 的每一项（store.getters在哪里定义暂无）*/
+  Object.keys(store.getters).forEach(type => {
+    // skip if the target getter is not match this namespace
+    /* 判断目标 getter 是否等于此 命名空间 namespace
+      1、假如命名空间 namespace 为 'account/posts/popular' 
+      2、store.getters 某一项为 'account/posts/popular' 
+    */
+    if (type.slice(0, splitPos) !== namespace) return
+
+    // extract local getter type
+    /*提取局部 module 的 getter：其实是对具体 getters 加了一层包装，添加了命名空间*/
+    const localType = type.slice(splitPos)
+
+    // Add a port to the getters proxy.
+    // Define as getter property because
+    // we do not want to evaluate the getters in this time.
+    /*对 store.getters 做了一层包装*/
+    Object.defineProperty(gettersProxy, localType, {
+      get: () => store.getters[type],
+      enumerable: true
+    })
+  })
+
+  return gettersProxy
+}
+
+function registerMutation (store, type, handler, local) {
+  const entry = store._mutations[type] || (store._mutations[type] = [])
+  entry.push(function wrappedMutationHandler (payload) {
+    handler.call(store, local.state, payload)
+  })
+}
+
+function registerAction (store, type, handler, local) {
+  const entry = store._actions[type] || (store._actions[type] = [])
+  entry.push(function wrappedActionHandler (payload, cb) {
+    let res = handler.call(store, {
+      dispatch: local.dispatch,
+      commit: local.commit,
+      getters: local.getters,
+      state: local.state,
+      rootGetters: store.getters,
+      rootState: store.state
+    }, payload, cb)
+    if (!isPromise(res)) {
+      res = Promise.resolve(res)
+    }
+    if (store._devtoolHook) {
+      return res.catch(err => {
+        store._devtoolHook.emit('vuex:error', err)
+        throw err
+      })
+    } else {
+      return res
+    }
+  })
+}
+
+function registerGetter (store, type, rawGetter, local) {
+  if (store._wrappedGetters[type]) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.error(`[vuex] duplicate getter key: ${type}`)
+    }
+    return
+  }
+  store._wrappedGetters[type] = function wrappedGetter (store) {
+    return rawGetter(
+      local.state, // local state
+      local.getters, // local getters
+      store.state, // root state
+      store.getters // root getters
+    )
+  }
+}
+
 function genericSubscribe (fn, subs) {
   if (subs.indexOf(fn) < 0) {
     subs.push(fn)
@@ -337,176 +616,6 @@ function resetStoreVM (store, state, hot) {
   }
 }
 
-function installModule (store, rootState, path, module, hot) {
-  const isRoot = !path.length
-  const namespace = store._modules.getNamespace(path)
-
-  // register in namespace map
-  if (module.namespaced) {
-    store._modulesNamespaceMap[namespace] = module
-  }
-
-  // set state
-  if (!isRoot && !hot) {
-    const parentState = getNestedState(rootState, path.slice(0, -1))
-    const moduleName = path[path.length - 1]
-    store._withCommit(() => {
-      Vue.set(parentState, moduleName, module.state)
-    })
-  }
-
-  const local = module.context = makeLocalContext(store, namespace, path)
-
-  module.forEachMutation((mutation, key) => {
-    const namespacedType = namespace + key
-    registerMutation(store, namespacedType, mutation, local)
-  })
-
-  module.forEachAction((action, key) => {
-    const type = action.root ? key : namespace + key
-    const handler = action.handler || action
-    registerAction(store, type, handler, local)
-  })
-
-  module.forEachGetter((getter, key) => {
-    const namespacedType = namespace + key
-    registerGetter(store, namespacedType, getter, local)
-  })
-
-  module.forEachChild((child, key) => {
-    installModule(store, rootState, path.concat(key), child, hot)
-  })
-}
-
-/**
- * make localized dispatch, commit, getters and state
- * if there is no namespace, just use root ones
- */
-function makeLocalContext (store, namespace, path) {
-  const noNamespace = namespace === ''
-
-  const local = {
-    dispatch: noNamespace ? store.dispatch : (_type, _payload, _options) => {
-      const args = unifyObjectStyle(_type, _payload, _options)
-      const { payload, options } = args
-      let { type } = args
-
-      if (!options || !options.root) {
-        type = namespace + type
-        if (process.env.NODE_ENV !== 'production' && !store._actions[type]) {
-          console.error(`[vuex] unknown local action type: ${args.type}, global type: ${type}`)
-          return
-        }
-      }
-
-      return store.dispatch(type, payload)
-    },
-
-    commit: noNamespace ? store.commit : (_type, _payload, _options) => {
-      const args = unifyObjectStyle(_type, _payload, _options)
-      const { payload, options } = args
-      let { type } = args
-
-      if (!options || !options.root) {
-        type = namespace + type
-        if (process.env.NODE_ENV !== 'production' && !store._mutations[type]) {
-          console.error(`[vuex] unknown local mutation type: ${args.type}, global type: ${type}`)
-          return
-        }
-      }
-
-      store.commit(type, payload, options)
-    }
-  }
-
-  // getters and state object must be gotten lazily
-  // because they will be changed by vm update
-  Object.defineProperties(local, {
-    getters: {
-      get: noNamespace
-        ? () => store.getters
-        : () => makeLocalGetters(store, namespace)
-    },
-    state: {
-      get: () => getNestedState(store.state, path)
-    }
-  })
-
-  return local
-}
-
-function makeLocalGetters (store, namespace) {
-  const gettersProxy = {}
-
-  const splitPos = namespace.length
-  Object.keys(store.getters).forEach(type => {
-    // skip if the target getter is not match this namespace
-    if (type.slice(0, splitPos) !== namespace) return
-
-    // extract local getter type
-    const localType = type.slice(splitPos)
-
-    // Add a port to the getters proxy.
-    // Define as getter property because
-    // we do not want to evaluate the getters in this time.
-    Object.defineProperty(gettersProxy, localType, {
-      get: () => store.getters[type],
-      enumerable: true
-    })
-  })
-
-  return gettersProxy
-}
-
-function registerMutation (store, type, handler, local) {
-  const entry = store._mutations[type] || (store._mutations[type] = [])
-  entry.push(function wrappedMutationHandler (payload) {
-    handler.call(store, local.state, payload)
-  })
-}
-
-function registerAction (store, type, handler, local) {
-  const entry = store._actions[type] || (store._actions[type] = [])
-  entry.push(function wrappedActionHandler (payload, cb) {
-    let res = handler.call(store, {
-      dispatch: local.dispatch,
-      commit: local.commit,
-      getters: local.getters,
-      state: local.state,
-      rootGetters: store.getters,
-      rootState: store.state
-    }, payload, cb)
-    if (!isPromise(res)) {
-      res = Promise.resolve(res)
-    }
-    if (store._devtoolHook) {
-      return res.catch(err => {
-        store._devtoolHook.emit('vuex:error', err)
-        throw err
-      })
-    } else {
-      return res
-    }
-  })
-}
-
-function registerGetter (store, type, rawGetter, local) {
-  if (store._wrappedGetters[type]) {
-    if (process.env.NODE_ENV !== 'production') {
-      console.error(`[vuex] duplicate getter key: ${type}`)
-    }
-    return
-  }
-  store._wrappedGetters[type] = function wrappedGetter (store) {
-    return rawGetter(
-      local.state, // local state
-      local.getters, // local getters
-      store.state, // root state
-      store.getters // root getters
-    )
-  }
-}
-
 function enableStrictMode (store) {
   store._vm.$watch(function () { return this._data.$$state }, () => {
     if (process.env.NODE_ENV !== 'production') {
@@ -515,46 +624,11 @@ function enableStrictMode (store) {
   }, { deep: true, sync: true })
 }
 
-function getNestedState (state, path) {
-  return path.length
-    ? path.reduce((state, key) => state[key], state)
-    : state
-}
-
 /**
- * [unifyObjectStyle 统一dispatch、commit参数]
- * @param  {[type]} type    [类型]
- * @param  {[type]} payload [载荷]
- * @param  {[type]} options [值为payload]
- * @return {[type]}         [description]
+ * [install   Vue.use(vuex) -> 执行 vuex 插件的 install 方法 -> 执行 applyMixin -> 使vue每个组件this.$store = options.store]
+ * @param  {[Vue]}  _Vue [传入的是Vue的实例]
+ * @return {[type]}      [description]
  */
-/*统一dispatch传入参数：
-  1、以载荷形式分发（默认提取为type、payload）
-     store.dispatch('incrementAsync', { amount: 10 })
-  2、以对象形式分发
-     store.dispatch({ type: 'incrementAsync', amount: 10 })
-*/
-function unifyObjectStyle (type, payload, options) {
-  /*以对象形式分发：store.dispatch({ type: 'incrementAsync', amount: 10 })*/
-  if (isObject(type) && type.type) {
-    /*以对象形式分发时，第二个参数为options*/
-    options = payload
-    /*从第一个参数中提取出type*/
-    payload = type
-    /*从第一个参数中提取出type*/
-    type = type.type
-  }
-
-  if (process.env.NODE_ENV !== 'production') {
-    /*假如分理出的t ype不是string类型，报错*/
-    assert(typeof type === 'string', `expects string as the type, but found ${typeof type}.`)
-  }
-
-  /*最终返回出对象：包含type、payload、options属性*/
-  return { type, payload, options }
-}
-
-/* Vue.use(Vuex)实现：Vuex是一个对象，会执行 vuex 插件的 install 方法*/
 export function install (_Vue) {
   /*只允许一次 Vue.use(Vuex) */
   if (Vue && _Vue === Vue) {

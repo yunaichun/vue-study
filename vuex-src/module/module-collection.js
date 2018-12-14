@@ -8,6 +8,10 @@ import { assert, forEachValue } from '../util'
      使其都成为 module 对象，最后 options 对象被构造成一个完整的组件树。
   3、假设实例 Store 如下：
        const store = new Vuex.Store({
+        state: {},
+        getters: {},
+        mutations: {},
+        actions: {},
         modules: {
           account: {
             namespaced: true,
@@ -48,11 +52,13 @@ import { assert, forEachValue } from '../util'
         }
       })
     则 var test = new ModuleCollection(options) 之后为：
-    1、test.root = newModule(options)
-    2、test.root._children[account] = newModule(options2)
+    1、test.root = new Module(options)
+    2、test.root._children[account] = new Module(options2) // 其中 options2 = account: {}
+    3、test.root._children[account]._children[myPage] = new Module(options31) // 其中 options31 = myPage: {}
+       test.root._children[account]._children[posts] = new Module(options32) // 其中 options32 = posts: {}
 */
 export default class ModuleCollection {
-  /*rawRootModule 为实例store传入的options对象*/
+  /*rawRootModule 为实例 store 传入的 options 对象*/
   constructor (rawRootModule) {
     // register root module (Vuex.Store options)
     this.register([], rawRootModule, false)
@@ -106,7 +112,7 @@ export default class ModuleCollection {
     }, this.root)
   }
 
-  /*获取当前传入 path 对应的 module 模块的命名空间*/
+  /*根据当前传入 path，获取对应的 module 模块的命名空间*/
   getNamespace (path) {
     /*获取根模块*/
     let module = this.root
@@ -122,7 +128,7 @@ export default class ModuleCollection {
     update([], this.root, rawRootModule)
   }
   
-  /*移除当前传入 path 对应的 module 模块*/
+  /*根据当前传入 path，移除对应的 module 模块*/
   unregister (path) {
     /*获取当前path的父模块：path.slice(0, -1) 除去 path 最后一项，即自身；此时 path 最后一项为 当前 path 的父级*/
     const parent = this.get(path.slice(0, -1))
