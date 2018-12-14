@@ -91,6 +91,7 @@ export class Store {
 
     // initialize the store vm, which is responsible for the reactivity
     // (also registers _wrappedGetters as computed properties)
+    /*store 组件的初始化：设置新的 store._vm 的 Vue 实例，主要是将 _wrappedGetters 作为 computed 属性*/
     resetStoreVM(this, state)
 
     // apply plugins
@@ -602,6 +603,89 @@ function registerGetter (store, type, rawGetter, local) {
   }
 }
 
+/**
+ * [resetStoreVM store 组件的初始化：设置新的 store._vm 的 Vue 实例，主要是将 _wrappedGetters 作为 computed 属性]
+ * @param  {[Class]}     store [store 实例 this]
+ * @param  {[Object]}    state [根节点的 state]
+ * @param  {[Boolean]}   hot   [是否是热更新]
+ * @return {[type]}       [description]
+ */
+function resetStoreVM (store, state, hot) {
+  /*缓存前 store._vm 组件：
+    1、Vuex其实构建的就是一个名为 store._vm 的Vue实例组件，
+    2、所有配置的state、actions、mutations以及getters都是其组件的属性，所有的操作都是对这个vm组件进行的
+  */
+  const oldVm = store._vm
+
+  // bind store public getters
+  store.getters = {}
+  const wrappedGetters = store._wrappedGetters
+  const computed = {}
+  /*一、循环所有 getters：
+    1、新建 computed 对象进行存储，
+    2、通过 Object.defineProperty 方法为 getters 对象建立属性，使得我们通过 this.$store.getters.xxxgetter 能够访问到该 getters
+  */
+  forEachValue(wrappedGetters, (fn, key) => {
+    // use computed to leverage its lazy-caching mechanism
+    /*wrappedGetters 绑定到新建 store._vm 实例的计算属性 computed 上*/
+    computed[key] = () => fn(store)
+    /*this.$store.getters.key  ===  store._vm[key]（通过计算属性获取的）*/
+    Object.defineProperty(store.getters, key, {
+      get: () => store._vm[key],
+      enumerable: true // for local getters
+    })
+  })
+
+  // use a Vue instance to store the state tree
+  // suppress warnings just in case the user has added
+  // some funky global mixins
+  /*暂时将Vue设为静默模式，避免报出用户加载的某些插件触发的警告*/
+  const silent = Vue.config.silent
+  Vue.config.silent = true
+  /*二、设置新的 store._vm 的 Vue 实例，主要是将 _wrappedGetters 作为 computed 属性*/
+  store._vm = new Vue({
+    data: {
+      $$state: state /*当前组件的 state */
+    },
+    computed /*当前组件的 _wrappedGetters */
+  })
+  /*恢复Vue的模式*/
+  Vue.config.silent = silent
+
+  // enable strict mode for new vm
+  /*三、该方法对 state 执行 $watch 以禁止从 mutation 外部修改 state*/
+  if (store.strict) {
+    enableStrictMode(store)
+  }
+
+  /*四、若不是初始化过程执行的该方法，将旧的组件 state 设置为 null，强制更新所有监听者(watchers)，
+  待更新生效，DOM 更新完成后，执行 vm 组件的 destroy 方法进行销毁，减少内存的占用*/
+  if (oldVm) {
+    if (hot) {
+      // dispatch changes in all subscribed watchers
+      // to force getter re-evaluation for hot reloading.
+      store._withCommit(() => {
+        oldVm._data.$$state = null
+      })
+    }
+    Vue.nextTick(() => oldVm.$destroy())
+  }
+}
+
+/**
+ * [enableStrictMode 对 state 执行 $watch 以禁止从 mutation 外部修改 state]
+ * @param  {[Class]} store [store 实例 this]
+ * @return {[type]}        [description]
+ */
+function enableStrictMode (store) {
+  /*对 store._vm 此 vue 进行实例数据监听，确保 state 的修改必须是由 mutation 操作*/
+  store._vm.$watch(function () { return this._data.$$state }, () => {
+    if (process.env.NODE_ENV !== 'production') {
+      assert(store._committing, `do not mutate vuex store state outside mutation handlers.`)
+    }
+  }, { deep: true, sync: true })
+}
+
 function genericSubscribe (fn, subs) {
   if (subs.indexOf(fn) < 0) {
     subs.push(fn)
@@ -624,60 +708,6 @@ function resetStore (store, hot) {
   installModule(store, state, [], store._modules.root, true)
   // reset vm
   resetStoreVM(store, state, hot)
-}
-
-function resetStoreVM (store, state, hot) {
-  const oldVm = store._vm
-
-  // bind store public getters
-  store.getters = {}
-  const wrappedGetters = store._wrappedGetters
-  const computed = {}
-  forEachValue(wrappedGetters, (fn, key) => {
-    // use computed to leverage its lazy-caching mechanism
-    computed[key] = () => fn(store)
-    Object.defineProperty(store.getters, key, {
-      get: () => store._vm[key],
-      enumerable: true // for local getters
-    })
-  })
-
-  // use a Vue instance to store the state tree
-  // suppress warnings just in case the user has added
-  // some funky global mixins
-  const silent = Vue.config.silent
-  Vue.config.silent = true
-  store._vm = new Vue({
-    data: {
-      $$state: state
-    },
-    computed
-  })
-  Vue.config.silent = silent
-
-  // enable strict mode for new vm
-  if (store.strict) {
-    enableStrictMode(store)
-  }
-
-  if (oldVm) {
-    if (hot) {
-      // dispatch changes in all subscribed watchers
-      // to force getter re-evaluation for hot reloading.
-      store._withCommit(() => {
-        oldVm._data.$$state = null
-      })
-    }
-    Vue.nextTick(() => oldVm.$destroy())
-  }
-}
-
-function enableStrictMode (store) {
-  store._vm.$watch(function () { return this._data.$$state }, () => {
-    if (process.env.NODE_ENV !== 'production') {
-      assert(store._committing, `do not mutate vuex store state outside mutation handlers.`)
-    }
-  }, { deep: true, sync: true })
 }
 
 /**
