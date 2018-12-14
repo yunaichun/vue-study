@@ -78,7 +78,7 @@ export class Store {
     // init root module.
     // this also recursively registers all sub-modules
     // and collects all module getters inside this._wrappedGetters
-    /*module 安装：
+    /*四、module 安装：
       1、存储命名空间 namespace 对应的 module 在 store 的 _modulesNamespaceMap 属性中
       2、设置当前 module 为响应式、
       3、设置当前 module 局部的 dispatch、commit 方法以及 getters 和 state
@@ -91,10 +91,11 @@ export class Store {
 
     // initialize the store vm, which is responsible for the reactivity
     // (also registers _wrappedGetters as computed properties)
-    /*store 组件的初始化：设置新的 store._vm 的 Vue 实例，主要是将 _wrappedGetters 作为 computed 属性*/
+    /*五、store 组件的初始化：设置新的 store._vm 的 Vue 实例，主要是将 _wrappedGetters 作为 computed 属性*/
     resetStoreVM(this, state)
 
     // apply plugins
+    /*六、最后执行 plugin 的注入*/
     plugins.forEach(plugin => plugin(this))
 
     const useDevtools = options.devtools !== undefined ? options.devtools : Vue.config.devtools
@@ -103,11 +104,21 @@ export class Store {
     }
   }
 
+  /**
+   * [state 获取 store._vm 实例的状态]
+   * @return {[type]} [description]
+   */
   get state () {
     return this._vm._data.$$state
   }
 
+  /**
+   * [state 设置 store._vm 实例的状态]
+   * @param  {[Any]} v  [store._vm 实例的新状态]
+   * @return {[type]}   [description]
+   */
   set state (v) {
+    /*只能通过 _withCommit 修改 state 的状态*/
     if (process.env.NODE_ENV !== 'production') {
       assert(false, `use store.replaceState() to explicit replace store state.`)
     }
@@ -205,6 +216,34 @@ export class Store {
       : entry[0](payload)
   }
 
+  /**
+   * [_withCommit 专用修改state方法，其他修改state方法均是非法修改]
+   * @param  {Function} fn [mutation函数：执行state的修改操作]
+   * @return {[type]}      [description]
+   */
+  _withCommit (fn) {
+    /*缓存this._committing状态*/
+    const committing = this._committing
+    /*回调函数执行前：修改this._committing状态为true*/
+    /*进行本次提交，若不设置为true，直接修改state，strict模式下，Vuex将会产生非法修改state的警告*/
+    this._committing = true
+    /*mutation函数：执行state的修改操作*/
+    fn()
+    /*回调函数执行后：重置this._committing状态为初始值*/
+    this._committing = committing
+  }
+
+  /**
+   * [replaceState 提供“时空穿梭”功能，即 state 操作的前进和倒退]
+   * @param  {[Object]} state [[store 实例的 state ]
+   * @return {[type]}         [description]
+   */
+  replaceState (state) {
+    this._withCommit(() => {
+      this._vm._data.$$state = state
+    })
+  }
+
   subscribe (fn) {
     return genericSubscribe(fn, this._subscribers)
   }
@@ -220,11 +259,7 @@ export class Store {
     return this._watcherVM.$watch(() => getter(this.state, this.getters), cb, options)
   }
 
-  replaceState (state) {
-    this._withCommit(() => {
-      this._vm._data.$$state = state
-    })
-  }
+  
 
   registerModule (path, rawModule, options = {}) {
     if (typeof path === 'string') path = [path]
@@ -258,23 +293,6 @@ export class Store {
   hotUpdate (newOptions) {
     this._modules.update(newOptions)
     resetStore(this, true)
-  }
-
-  /**
-   * [_withCommit 专用修改state方法，其他修改state方法均是非法修改]
-   * @param  {Function} fn [mutation函数：执行state的修改操作]
-   * @return {[type]}      [description]
-   */
-  _withCommit (fn) {
-    /*缓存this._committing状态*/
-    const committing = this._committing
-    /*回调函数执行前：修改this._committing状态为true*/
-    /*进行本次提交，若不设置为true，直接修改state，strict模式下，Vuex将会产生非法修改state的警告*/
-    this._committing = true
-    /*mutation函数：执行state的修改操作*/
-    fn()
-    /*回调函数执行后：重置this._committing状态为初始值*/
-    this._committing = committing
   }
 }
 
