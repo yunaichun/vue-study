@@ -308,7 +308,10 @@ function unifyObjectStyle (type, payload, options) {
 }
 
 /**
- * [installModule module 安装：1、设置当前 module 为响应式、2、设置当前 module 局部的 dispatch、commit 方法以及 getters 和 state、3、]
+ * [installModule module 安装：1、设置当前 module 为响应式、2、设置当前 module 局部的 dispatch、commit 方法以及 getters 和 state]
+ *                             3、将局部的 mutations 注册到全局 store 的 _mutations 属性下、
+ *                                将局部的 actions 注册到全局 store 的 _actions 属性下、
+ *                                将局部的 getters 注册到全局 store 的 _wrappedGetters 属性下
  * @param  {[Class]}   store      [store 实例 this ]
  * @param  {[Object]}  rootState  [根组件 state]
  * @param  {[Array]}   path       [模块路径：初始为空数组]
@@ -331,7 +334,7 @@ function installModule (store, rootState, path, module, hot) {
   }
 
   // set state
-  /*非根 module 模块 并且 非热更新：设置当前 moduleName 为响应式，数据为当前 module 的 state*/
+  /*一、非根 module 模块 并且 非热更新：设置当前 moduleName 为响应式，数据为当前 module 的 state*/
   if (!isRoot && !hot) {
     /*根据当前传入 path（除去最后一项，即自身；此时 path 最后一项为 当前 path 的父级），获取父模块*/
     const parentState = getNestedState(rootState, path.slice(0, -1))
@@ -344,22 +347,31 @@ function installModule (store, rootState, path, module, hot) {
     })
   }
 
-  /*定义 local 变量和 module.context 的值：设置当前 module 局部的 dispatch、commit 方法以及 getters 和 state（由于 namespace 的存在需要做兼容处理）*/
+  /*二、定义 local 变量和 module.context 的值：设置当前 module 局部的 dispatch、commit 方法以及 getters 和 state（由于 namespace 的存在需要做兼容处理）*/
   const local = module.context = makeLocalContext(store, namespace, path)
 
+  /*循环执行当前模块 mutations*/
   module.forEachMutation((mutation, key) => {
+    /*含有 namespace 的当前 module 的 mutation 的名称*/
     const namespacedType = namespace + key
+    /*将局部的 mutations 注册到全局 store 的 _mutations 属性下：this.$store._mutations.testMutations[0]({ amount: 100 });*/
     registerMutation(store, namespacedType, mutation, local)
   })
 
+  /*循环执行当前模块 actions*/
   module.forEachAction((action, key) => {
+    /*含有 namespace 的当前 module 的 action 的名称*/
     const type = action.root ? key : namespace + key
     const handler = action.handler || action
+    /*将局部的 actions 注册到全局 store 的 _actions 属性下：this.$store._actions.testActions[0]({ amount: 100 }, callback);*/
     registerAction(store, type, handler, local)
   })
 
+  /*循环执行当前模块 getters*/
   module.forEachGetter((getter, key) => {
-    const namespacedType = namespace + key
+     /*含有 namespace 的当前 module 的 getters 的名称*/
+    const namespacedType = namespace + key   
+    /*将局部的 getters 注册到全局 store 的 _wrappedGetters 属性下*/
     registerGetter(store, namespacedType, getter, local)
   })
 
@@ -497,16 +509,36 @@ function makeLocalGetters (store, namespace) {
   return gettersProxy
 }
 
+/**
+ * [registerMutation 将局部的 mutations 注册到全局 store 的 _mutations 属性下]
+ * @param  {[Class]}    store     [store 实例 this]
+ * @param  {[String]}   type      [含有 namespace 的当前 module 的 mutation 的名称]
+ * @param  {[Function]} handler   [当前 module 的 mutations 为 type 的值]
+ * @param  {[Object]}   local     [module.context：当前 module 局部的 dispatch、commit 方法以及 getters 和 state]
+ * @return {[type]}               [description]
+ */
 function registerMutation (store, type, handler, local) {
+  /*将局部的 mutations 注册到全局 store 的 _mutations 属性下：每一项都是一个数组*/
   const entry = store._mutations[type] || (store._mutations[type] = [])
   entry.push(function wrappedMutationHandler (payload) {
+    /*执行 store._mutations[type][0](payload) <=> 实际是 store 调用 handler，传入当前模块的state 和 payload*/
     handler.call(store, local.state, payload)
   })
 }
 
+/**
+ * [registerAction 将局部的 actions 注册到全局 store 的 _actions 属性下]
+ * @param  {[Class]}    store     [store 实例 this]
+ * @param  {[String]}   type      [含有 namespace 的当前 module 的 action 的名称]
+ * @param  {[Function]} handler   [当前 module 的 actions 为 type 的值]
+ * @param  {[Object]}   local     [module.context：当前 module 局部的 dispatch、commit 方法以及 getters 和 state]
+ * @return {[Promise]}            [返回Promise]
+ */
 function registerAction (store, type, handler, local) {
+  /*将局部的 actions 注册到全局 store 的 _actions 属性下：每一项都是一个数组*/
   const entry = store._actions[type] || (store._actions[type] = [])
   entry.push(function wrappedActionHandler (payload, cb) {
+    /*执行 store._actions[type][0](payload, cb) <=> 实际是 store 调用 handler，传入当前模块的 state 和 payload、cb*/
     let res = handler.call(store, {
       dispatch: local.dispatch,
       commit: local.commit,
@@ -515,28 +547,42 @@ function registerAction (store, type, handler, local) {
       rootGetters: store.getters,
       rootState: store.state
     }, payload, cb)
+    /*将 action 执行结果转为 Promise，可以链式调用*/
     if (!isPromise(res)) {
       res = Promise.resolve(res)
     }
     if (store._devtoolHook) {
+      /*store含有_devtoolHook配置选项的话，添加异常捕获*/
       return res.catch(err => {
         store._devtoolHook.emit('vuex:error', err)
         throw err
       })
     } else {
+      /*返回Promise*/
       return res
     }
   })
 }
 
+/**
+ * [registerGetter 将局部的 getters 注册到全局 store 的 _wrappedGetters 属性下]
+ * @param  {[Class]}    store       [store 实例 this]
+ * @param  {[String]}   type        [含有 namespace 的当前 module 的 action 的名称]
+ * @param  {[Function]} rawGetter   [当前 module 的 getters 为 type 的值]
+ * @param  {[Object]}   local       [module.context：当前 module 局部的 dispatch、commit 方法以及 getters 和 state]
+ * @return {[Promise]}              [返回Promise]
+ */
 function registerGetter (store, type, rawGetter, local) {
+  /*getters 命名不能重复*/
   if (store._wrappedGetters[type]) {
     if (process.env.NODE_ENV !== 'production') {
       console.error(`[vuex] duplicate getter key: ${type}`)
     }
     return
   }
+  /*将局部的 actions 注册到全局 store 的 _wrappedGetters 属性下：每一项是一个函数*/
   store._wrappedGetters[type] = function wrappedGetter (store) {
+    /*当前 module 的 getters 为 type 的值参数：当前 module 的 state 和 getters、全局的 store 和 getters*/
     return rawGetter(
       local.state, // local state
       local.getters, // local getters
