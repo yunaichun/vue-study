@@ -78,10 +78,14 @@ export class Store {
     // init root module.
     // this also recursively registers all sub-modules
     // and collects all module getters inside this._wrappedGetters
-    /*module 安装
-      1、初始化组件树根组件、
-      2、注册所有子组件、
-      3、并将其中所有的getters存储到this._wrappedGetters属性中
+    /*module 安装：
+      1、存储命名空间 namespace 对应的 module 在 store 的 _modulesNamespaceMap 属性中
+      2、设置当前 module 为响应式、
+      3、设置当前 module 局部的 dispatch、commit 方法以及 getters 和 state
+      4、将局部的 mutations 注册到全局 store 的 _mutations 属性下、
+         将局部的 actions 注册到全局 store 的 _actions 属性下、
+         将局部的 getters 注册到全局 store 的 _wrappedGetters 属性下、
+         子 module 的安装
     */
     installModule(this, state, [], this._modules.root)
 
@@ -308,10 +312,14 @@ function unifyObjectStyle (type, payload, options) {
 }
 
 /**
- * [installModule module 安装：1、设置当前 module 为响应式、2、设置当前 module 局部的 dispatch、commit 方法以及 getters 和 state]
- *                             3、将局部的 mutations 注册到全局 store 的 _mutations 属性下、
+ * [installModule module 安装：1、存储命名空间 namespace 对应的 module 在 store 的 _modulesNamespaceMap 属性中
+ *                             2、设置当前 module 为响应式、
+ *                             3、设置当前 module 局部的 dispatch、commit 方法以及 getters 和 state
+ *                             4、将局部的 mutations 注册到全局 store 的 _mutations 属性下、
  *                                将局部的 actions 注册到全局 store 的 _actions 属性下、
- *                                将局部的 getters 注册到全局 store 的 _wrappedGetters 属性下
+ *                                将局部的 getters 注册到全局 store 的 _wrappedGetters 属性下、
+ *                                子 module 的安装
+ * ] 
  * @param  {[Class]}   store      [store 实例 this ]
  * @param  {[Object]}  rootState  [根组件 state]
  * @param  {[Array]}   path       [模块路径：初始为空数组]
@@ -327,14 +335,14 @@ function installModule (store, rootState, path, module, hot) {
   const namespace = store._modules.getNamespace(path)
 
   // register in namespace map
-  /*如果当前 module 的 namespaced 属性设置为 true */
+  /*一、存储命名空间 namespace 对应的 module 在 store 的 _modulesNamespaceMap 属性中*/
   if (module.namespaced) {
     /*将命名空间 namespace 字符串路径存入 Store*/
     store._modulesNamespaceMap[namespace] = module
   }
 
   // set state
-  /*一、非根 module 模块 并且 非热更新：设置当前 moduleName 为响应式，数据为当前 module 的 state*/
+  /*二、非根 module 模块 并且 非热更新：设置当前 moduleName 为响应式，数据为当前 module 的 state*/
   if (!isRoot && !hot) {
     /*根据当前传入 path（除去最后一项，即自身；此时 path 最后一项为 当前 path 的父级），获取父模块*/
     const parentState = getNestedState(rootState, path.slice(0, -1))
@@ -347,10 +355,10 @@ function installModule (store, rootState, path, module, hot) {
     })
   }
 
-  /*二、定义 local 变量和 module.context 的值：设置当前 module 局部的 dispatch、commit 方法以及 getters 和 state（由于 namespace 的存在需要做兼容处理）*/
+  /*三、定义 local 变量和 module.context 的值：设置当前 module 局部的 dispatch、commit 方法以及 getters 和 state（由于 namespace 的存在需要做兼容处理）*/
   const local = module.context = makeLocalContext(store, namespace, path)
 
-  /*循环执行当前模块 mutations*/
+  /*四、循环执行当前模块 mutations*/
   module.forEachMutation((mutation, key) => {
     /*含有 namespace 的当前 module 的 mutation 的名称*/
     const namespacedType = namespace + key
@@ -358,7 +366,7 @@ function installModule (store, rootState, path, module, hot) {
     registerMutation(store, namespacedType, mutation, local)
   })
 
-  /*循环执行当前模块 actions*/
+  /*四、循环执行当前模块 actions*/
   module.forEachAction((action, key) => {
     /*含有 namespace 的当前 module 的 action 的名称*/
     const type = action.root ? key : namespace + key
@@ -367,7 +375,7 @@ function installModule (store, rootState, path, module, hot) {
     registerAction(store, type, handler, local)
   })
 
-  /*循环执行当前模块 getters*/
+  /*四、循环执行当前模块 getters*/
   module.forEachGetter((getter, key) => {
      /*含有 namespace 的当前 module 的 getters 的名称*/
     const namespacedType = namespace + key   
@@ -375,7 +383,9 @@ function installModule (store, rootState, path, module, hot) {
     registerGetter(store, namespacedType, getter, local)
   })
 
+  /*四、循环执行当前模块 子模块*/
   module.forEachChild((child, key) => {
+    /*子 module 安装*/
     installModule(store, rootState, path.concat(key), child, hot)
   })
 }
