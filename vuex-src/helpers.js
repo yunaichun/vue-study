@@ -4,28 +4,63 @@
  * @param {Object|Array} states # Object's item can be a function which accept state and getters for param, you can do something for state and getters in it.
  * @param {Object}
  */
+/*拿 mapState 写法举例：
+  法一：数组写法
+  computed: mapState([
+    // 映射 this.count 为 store.state.count
+    'count'
+  ])
+  法二：对象写法
+  computed: {
+    ...mapState({
+      a: state => state.some.nested.module.a,
+      b: state => state.some.nested.module.b
+    })
+  }
+  法三：带有命名空间写法
+  computed: {
+    ...mapState('some/nested/module', {
+      a: state => state.a,
+      b: state => state.b
+    })
+  }
+*/
+/*执行流程：
+  一、执行 normalizeNamespace(fn) -> 返回 fuc = function(namespace, map) {} 【namespace, map为形参】
+  二、执行 mapState(a, b) 【a, b为实参】-> 实际是执行 fnc 函数，在 fuc 函数中规范化了 a, b 参数 -> 执行了 fn 函数，传入规范化的 a, b 参数            
+*/
+/*此处 namespace 和 states 是形参，实际参数是 mapState 执行时传入的参数*/
 export const mapState = normalizeNamespace((namespace, states) => {
   const res = {}
-  /*Array 或 Object 最后转为 map 对象*/
-  normalizeMap(states).forEach(({ key, val }) => {
+  /*此时运行的 namespace 和 states 是已经规范化话的数据，兼容三种写法的 mapState*/
+  normalizeMap(states).forEach(({ key, val }) => { /*forEach 的参数是 value 和 key，value是 {key: 'a', val: 1}*/
     res[key] = function mappedState () {
+      /*vuex store 状态 state 对象*/
       let state = this.$store.state
+      /*vuex store  getters 对象*/
       let getters = this.$store.getters
+      /*存在命名空间*/
       if (namespace) {
+        /*返回 namespace 字符串对应的  module*/
         const module = getModuleByNamespace(this.$store, 'mapState', namespace)
+        /*module 不存在 停止执行*/
         if (!module) {
           return
         }
+        /*获取当前 module 局部 state 状态*/
         state = module.context.state
+        /*获取当前 module 局部 getters*/
         getters = module.context.getters
       }
+      /*当前 key 对应的 value 是 vuex store 状态 state 对象对应的 key 值*/
       return typeof val === 'function'
-        ? val.call(this, state, getters)
+        ? val.call(this, state, getters) /*假如 value 为函数的情况：执行此函数，传入 state 和 getters*/
         : state[val]
     }
     // mark vuex getter for devtools
     res[key].vuex = true
   })
+  /*返回一个对象：1、对象的所有 key 是传入的 states 规范化后的所有 key、 2、对象 key 对应的 value 是 vuex store 状态 state 对象对应的 key 值*/
   return res
 })
 
@@ -141,16 +176,41 @@ function normalizeMap (map) {
  * @param {Function} fn
  * @return {Function}
  */
+/*normalizeNamespace 其实是对 fn 做了一层包装：对 fn 的参数做了一个规范化处理，因为 fn 的参数有三种写法*/
 function normalizeNamespace (fn) {
-  /*返回一个函数：normalizeNamespace 执行后返回 fn 执行函数*/
+  /*拿 mapState 写法举例：
+    法一：数组写法
+    computed: mapState([
+      // 映射 this.count 为 store.state.count
+      'count'
+    ])
+    法二：对象写法
+    computed: {
+      ...mapState({
+        a: state => state.some.nested.module.a,
+        b: state => state.some.nested.module.b
+      })
+    }
+    法三：带有命名空间写法
+    computed: {
+      ...mapState('some/nested/module', {
+        a: state => state.a,
+        b: state => state.b
+      })
+    }
+  */
+  /*此处 namespace 和 states 是形参，实际参数是 mapState 执行时传入的参数*/
   return (namespace, map) => {
-    /*namespace 不是字符串*/
+    /*namespace 不是字符串，即 法一/法二 写法*/
     if (typeof namespace !== 'string') {
+      /*map 为第一个参数：Array 或 Object*/
       map = namespace
+      /*命名空间为空*/
       namespace = ''
     } 
-    /*namespace 最后一个字符是 '/'*/
+    /*namespace 最后一个字符是 '/'，即 法三 写法*/
     else if (namespace.charAt(namespace.length - 1) !== '/') {
+      /*namespace 最后一位拼接上 '/'*/
       namespace += '/'
     }
     /*返回 fn 函数，传入规范化的 namespace 和 map */
@@ -166,9 +226,12 @@ function normalizeNamespace (fn) {
  * @return {Object}
  */
 function getModuleByNamespace (store, helper, namespace) {
+  /*namespace 字符串存储了对应的 module：store._modulesNamespaceMap[namespace] = module*/
   const module = store._modulesNamespaceMap[namespace]
+  /*如果 module 不存在 打印存储*/
   if (process.env.NODE_ENV !== 'production' && !module) {
     console.error(`[vuex] module namespace not found in ${helper}(): ${namespace}`)
   }
+  /*返回 namespace 对应的 module*/
   return module
 }
