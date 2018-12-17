@@ -169,6 +169,7 @@ export const mapActions = normalizeNamespace((namespace, actions) => {
  * @param {String} namespace
  * @return {Object}
  */
+/*重写 mapState、mapGetters、mapMutations、mapActions 函数，将命名空间提前传入*/
 export const createNamespacedHelpers = (namespace) => ({
   mapState: mapState.bind(null, namespace),
   mapGetters: mapGetters.bind(null, namespace),
