@@ -60,7 +60,7 @@ export const mapState = normalizeNamespace((namespace, states) => {
     // mark vuex getter for devtools
     res[key].vuex = true
   })
-  /*返回一个对象：1、对象的所有 key 是传入的 states 规范化后的所有 key、 2、对象 key 对应的 value 是 vuex store 状态 state 对象对应的 key 值*/
+  /*返回一个对象：1、对象的所有 key 是传入的 states 规范化后的所有 key、 2、对象 key 对应的 value 是 vuex store 状态 state 对象对应的 key 对应的 value 值*/
   return res
 })
 
@@ -75,19 +75,26 @@ export const mapMutations = normalizeNamespace((namespace, mutations) => {
   normalizeMap(mutations).forEach(({ key, val }) => {
     res[key] = function mappedMutation (...args) {
       // Get the commit method from store
+      /*vuex store 状态 commit 函数*/
       let commit = this.$store.commit
+      /*存在命名空间*/
       if (namespace) {
+        /*返回 namespace 字符串对应的  module*/
         const module = getModuleByNamespace(this.$store, 'mapMutations', namespace)
+        /*module 不存在 停止执行*/
         if (!module) {
           return
         }
+        /*获取当前 module 局部 commit*/
         commit = module.context.commit
       }
+      /*当前 key 对应的 value 是 vuex store 的 mutations 中对应的 key 对应的 value 值*/
       return typeof val === 'function'
-        ? val.apply(this, [commit].concat(args))
-        : commit.apply(this.$store, [val].concat(args))
+        ? val.apply(this, [commit].concat(args)) /*假如 value 为函数的情况：执行此函数，传入 局部 commit 函数 和 当前函数参数*/
+        : commit.apply(this.$store, [val].concat(args)) /*一般写法 args 为空*/
     }
   })
+  /*返回一个对象：1、对象的所有 key 是传入的 mutations 规范化后的所有 key、 2、对象 key 对应的 value 是 vuex store 的 mutations 对应的 key 对应的 value 值*/
   return res
 })
 
@@ -103,18 +110,23 @@ export const mapGetters = normalizeNamespace((namespace, getters) => {
     // The namespace has been mutated by normalizeNamespace
     val = namespace + val
     res[key] = function mappedGetter () {
+      /*存在命名空间，此命名空间对应的 module 不存在 停止执行*/
       if (namespace && !getModuleByNamespace(this.$store, 'mapGetters', namespace)) {
         return
       }
+      /*写了一个 Vuex Store  的 getters 中不存在的 getter，报错同时停止执行*/
       if (process.env.NODE_ENV !== 'production' && !(val in this.$store.getters)) {
         console.error(`[vuex] unknown getter: ${val}`)
         return
       }
+
+      /*当前 key 对应的 value 是 vuex store 的 getters 中对应的 key 对应的 value 值*/
       return this.$store.getters[val]
     }
     // mark vuex getter for devtools
     res[key].vuex = true
   })
+  /*返回一个对象：1、对象的所有 key 是传入的 states 规范化后的所有 key、 2、对象 key 对应的 value 是 vuex store 状态 state 对象对应的 key 对应的 value 值*/
   return res
 })
 
@@ -129,19 +141,26 @@ export const mapActions = normalizeNamespace((namespace, actions) => {
   normalizeMap(actions).forEach(({ key, val }) => {
     res[key] = function mappedAction (...args) {
       // get dispatch function from store
+      /*vuex store 状态 dispatch 函数*/
       let dispatch = this.$store.dispatch
+      /*存在命名空间*/
       if (namespace) {
+        /*返回 namespace 字符串对应的  module*/
         const module = getModuleByNamespace(this.$store, 'mapActions', namespace)
+        /*module 不存在 停止执行*/
         if (!module) {
           return
         }
+        /*获取当前 module 局部 dispatch*/
         dispatch = module.context.dispatch
       }
+      /*当前 key 对应的 value 是 vuex store 的 actions 中对应的 key 对应的 value 值*/
       return typeof val === 'function'
-        ? val.apply(this, [dispatch].concat(args))
-        : dispatch.apply(this.$store, [val].concat(args))
+        ? val.apply(this, [dispatch].concat(args)) /*假如 value 为函数的情况：执行此函数，传入 局部 dispatch 函数 和 当前函数参数*/
+        : dispatch.apply(this.$store, [val].concat(args)) /*一般写法 args 为空*/
     }
   })
+  /*返回一个对象：1、对象的所有 key 是传入的 actions 规范化后的所有 key、 2、对象 key 对应的 value 是 vuex store 的 actions 对应的 key 对应的 value 值*/
   return res
 })
 
