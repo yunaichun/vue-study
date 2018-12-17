@@ -76,7 +76,7 @@ export default class Module {
   forEachAction (fn) {
     /*当前模块存在 actions 配置项*/
     if (this._rawModule.actions) {
-      /*对当前模块 getters 配置项的每一项执行 fn 函数：传入 actions 的 value 和 key*/
+      /*对当前模块 actions 配置项的每一项执行 fn 函数：传入 actions 的 value 和 key*/
       forEachValue(this._rawModule.actions, fn)
     }
   }
@@ -85,7 +85,7 @@ export default class Module {
   forEachMutation (fn) {
     /*当前模块存在 mutations 配置项*/
     if (this._rawModule.mutations) {
-      /*对当前模块 getters 配置项的每一项执行 fn 函数：传入 mutations 的 value 和 key*/
+      /*对当前模块 mutations 配置项的每一项执行 fn 函数：传入 mutations 的 value 和 key*/
       forEachValue(this._rawModule.mutations, fn)
     }
   }

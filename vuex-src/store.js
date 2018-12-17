@@ -496,7 +496,7 @@ function makeLocalContext (store, namespace, path) {
   const noNamespace = namespace === ''
 
   const local = {
-    /*设置 module 局部 dispatch：兼容次 module 是否有 namespace */
+    /*设置 module 局部 dispatch：兼容此 module 是否有 namespace */
     dispatch: noNamespace ? store.dispatch : (_type, _payload, _options) => {
       /*统一dispatch参数*/
       const args = unifyObjectStyle(_type, _payload, _options)
@@ -518,7 +518,7 @@ function makeLocalContext (store, namespace, path) {
       return store.dispatch(type, payload)
     },
 
-    /*设置 module 局部 commit：兼容次 module 是否有 namespace */
+    /*设置 module 局部 commit：兼容此 module 是否有 namespace */
     commit: noNamespace ? store.commit : (_type, _payload, _options) => {
       /*统一commit参数*/
       const args = unifyObjectStyle(_type, _payload, _options)
@@ -544,7 +544,7 @@ function makeLocalContext (store, namespace, path) {
   // getters and state object must be gotten lazily
   // because they will be changed by vm update
   Object.defineProperties(local, {
-    /*设置 module 局部 getters：兼容次 module 是否有 namespace */
+    /*设置 module 局部 getters：兼容此 module 是否有 namespace */
     getters: {
       get: noNamespace
         ? () => store.getters

@@ -6,6 +6,7 @@
  */
 export const mapState = normalizeNamespace((namespace, states) => {
   const res = {}
+  /*Array 或 Object 最后转为 map 对象*/
   normalizeMap(states).forEach(({ key, val }) => {
     res[key] = function mappedState () {
       let state = this.$store.state
@@ -129,9 +130,10 @@ export const createNamespacedHelpers = (namespace) => ({
  * @return {Object}
  */
 function normalizeMap (map) {
+  /*Array 或 Object 最后转为 map 对象*/
   return Array.isArray(map)
-    ? map.map(key => ({ key, val: key }))
-    : Object.keys(map).map(key => ({ key, val: map[key] }))
+    ? map.map(key => ({ key, val: key })) /*数组*/
+    : Object.keys(map).map(key => ({ key, val: map[key] })) /*对象*/
 }
 
 /**
@@ -140,13 +142,18 @@ function normalizeMap (map) {
  * @return {Function}
  */
 function normalizeNamespace (fn) {
+  /*返回一个函数：normalizeNamespace 执行后返回 fn 执行函数*/
   return (namespace, map) => {
+    /*namespace 不是字符串*/
     if (typeof namespace !== 'string') {
       map = namespace
       namespace = ''
-    } else if (namespace.charAt(namespace.length - 1) !== '/') {
+    } 
+    /*namespace 最后一个字符是 '/'*/
+    else if (namespace.charAt(namespace.length - 1) !== '/') {
       namespace += '/'
     }
+    /*返回 fn 函数，传入规范化的 namespace 和 map */
     return fn(namespace, map)
   }
 }
