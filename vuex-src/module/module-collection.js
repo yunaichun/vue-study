@@ -150,7 +150,7 @@ export default class ModuleCollection {
  * @param  {[Array]}  path         [命名空间，更新时传入空数组 []]
  * @param  {[Object]} targetModule [已构建的 module 树，更新时传入 this.root]
  * @param  {[Object]} newModule    [新的 Store 的 options 配置项]
- * @return {[type]}              [description]
+ * @return {[type]}                [description]
  */
 function update (path, targetModule, newModule) {
   /*更新store传入的options对象中的getters、mutations、actions传入的值的类型的判断*/

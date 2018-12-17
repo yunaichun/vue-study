@@ -316,23 +316,41 @@ export class Store {
     resetStoreVM(this, this.state)
   }
 
+  /**
+   * [unregisterModule 动态取消模块的注册]
+   * @param  {[Array]} path [取消注册模块路径]
+   * @return {[type]}       [description]
+   */
   unregisterModule (path) {
+    /*模块路径保证为数组*/
     if (typeof path === 'string') path = [path]
 
+    /*模块路径必须是一个数组*/
     if (process.env.NODE_ENV !== 'production') {
       assert(Array.isArray(path), `module path must be a string or an Array.`)
     }
 
+    /*根据当前传入 path，移除对应的 module 模块*/
     this._modules.unregister(path)
     this._withCommit(() => {
+      /*根据当前传入 path 获取父模块 module 的 state*/
       const parentState = getNestedState(this.state, path.slice(0, -1))
+      /*动态删除响应式数据：target、key*/
       Vue.delete(parentState, path[path.length - 1])
     })
+    /*module 模块的重置：数据重置 + 重装module 树 + 重置 store 的 vue 的 实例*/
     resetStore(this)
   }
 
+  /**
+   * [hotUpdate 动态热更新 module 模块]
+   * @param  {[Object]} newOptions [新的配置对象]
+   * @return {[type]}              [description]
+   */
   hotUpdate (newOptions) {
+    /*1、更新命名空间、更新 actions、更新 mutations、更新 getters；2、递归调用更新*/
     this._modules.update(newOptions)
+    /*module 模块的重置：数据重置 + 重装module 树 + 重置 store 的 vue 的 实例*/
     resetStore(this, true)
   }
 }
@@ -663,7 +681,7 @@ function registerGetter (store, type, rawGetter, local) {
 }
 
 /**
- * [resetStoreVM store 组件的初始化：设置新的 store._vm 的 Vue 实例，主要是将 _wrappedGetters 作为 computed 属性]
+ * [resetStoreVM 重置 store 的 vue 的 实例：设置新的 store._vm 的 Vue 实例，主要是将 _wrappedGetters 作为 computed 属性]
  * @param  {[Class]}     store [store 实例 this]
  * @param  {[Object]}    state [根节点的 state]
  * @param  {[Boolean]}   hot   [是否是热更新]
@@ -767,15 +785,24 @@ function genericSubscribe (fn, subs) {
   }
 }
 
+/**
+ * [resetStore module 模块的重置：数据重置 + 重装module 树 + 重置 store 的 vue 的 实例]
+ * @param  {[Class]}   store [store 实例 this]
+ * @param  {[Boolean]} hot   [是否是热更新]
+ * @return {[type]}          [description]
+ */
 function resetStore (store, hot) {
+  /*数据重置*/
   store._actions = Object.create(null)
   store._mutations = Object.create(null)
   store._wrappedGetters = Object.create(null)
   store._modulesNamespaceMap = Object.create(null)
   const state = store.state
   // init all modules
+  /*重装module 树*/
   installModule(store, state, [], store._modules.root, true)
   // reset vm
+  /*重置 store 的 vue 的 实例*/
   resetStoreVM(store, state, hot)
 }
 
