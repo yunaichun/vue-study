@@ -244,10 +244,20 @@ export class Store {
     })
   }
 
+  /**
+   * [subscribe 在 commit 函数中执行的订阅函数]
+   * @param  {Function} fn [订阅回调函数]
+   * @return {[type]}      [description]
+   */
   subscribe (fn) {
     return genericSubscribe(fn, this._subscribers)
   }
 
+  /**
+   * [subscribeAction 在 dispatch 函数中执行的订阅函数]
+   * @param  {Function} fn [订阅回调函数]
+   * @return {[type]}      [description]
+   */
   subscribeAction (fn) {
     return genericSubscribe(fn, this._actionSubscribers)
   }
@@ -704,12 +714,22 @@ function enableStrictMode (store) {
   }, { deep: true, sync: true })
 }
 
+/**
+ * [genericSubscribe 通用订阅函数]
+ * @param  {Function} fn   [回调函数]
+ * @param  {[type]}   subs [回调函数]
+ * @return {[type]}        [description]
+ */
 function genericSubscribe (fn, subs) {
+  /*保证 subs 数组中含有 fn 项*/
   if (subs.indexOf(fn) < 0) {
     subs.push(fn)
   }
+  /*返回一个函数*/
   return () => {
+    /*fn 项在数组 subs 中的索引*/
     const i = subs.indexOf(fn)
+    /*移除subs 数组中的 fn*/
     if (i > -1) {
       subs.splice(i, 1)
     }
