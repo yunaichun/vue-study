@@ -234,7 +234,7 @@ export class Store {
   }
 
   /**
-   * [replaceState 提供“时空穿梭”功能，即 state 操作的前进和倒退]
+   * [replaceState 提供“时空穿梭”功能，即返回到指定的 state 状态]
    * @param  {[Object]} state [[store 实例的 state ]
    * @return {[type]}         [description]
    */
