@@ -2,4 +2,4 @@
 
 ## 介绍
 
-Vue.js源码，笔记注释。
+vue、vuex、vue-router源码学习，笔记注释。
