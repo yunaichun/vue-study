@@ -262,10 +262,18 @@ export class Store {
     return genericSubscribe(fn, this._actionSubscribers)
   }
 
+  /**
+   * [watch vuex 提供监听 state 和 getter 变化的 watch]
+   * @param  {[Function]}   getter  [监听求值函数]
+   * @param  {[Function]}   cb      [回调函数]
+   * @param  {[Object]}     options [配置对象]
+   * @return {[type]}               [description]
+   */
   watch (getter, cb, options) {
     if (process.env.NODE_ENV !== 'production') {
       assert(typeof getter === 'function', `store.watch only accepts a function.`)
     }
+    /*this._watcherVM 是一个 Vue 实例，含有 $watch 功能*/
     return this._watcherVM.$watch(() => getter(this.state, this.getters), cb, options)
   }
 
