@@ -277,19 +277,42 @@ export class Store {
     return this._watcherVM.$watch(() => getter(this.state, this.getters), cb, options)
   }
 
-  
-
+  /**
+   * [registerModule 在 store 创建之后，模块动态注册]
+   * @param  {[Array]}  path      [动态注册模块路径]
+   * @param  {[Object]} rawModule [待注册模块配置对象]
+   * @param  {Object}   options   [动态注册模块配置参数]
+   * @return {[type]}             [description]
+   */
   registerModule (path, rawModule, options = {}) {
+    /*模块路径保证为数组*/
     if (typeof path === 'string') path = [path]
 
+    /*模块路径必须是一个数组，必须在new Vuex.store()之后才能动态注册*/
     if (process.env.NODE_ENV !== 'production') {
       assert(Array.isArray(path), `module path must be a string or an Array.`)
       assert(path.length > 0, 'cannot register the root module by using registerModule.')
     }
 
+    /*根据Store传入的配置项，构建模块 module 树，整棵 module 树存放在 this.root 属性上：
+      1、Vuex 支持 store 分模块传入，存储分析后的 modules；
+      2、ModuleCollection 主要将实例 store 传入的 options 对象整个构造为一个 module 对象，
+         并循环调用 this.register([key], rawModule, false) 为其中的 modules 属性进行模块注册，
+         使其都成为 module 对象，最后 options 对象被构造成一个完整的组件树。
+    */
     this._modules.register(path, rawModule)
+    /*module 安装：
+      1、存储命名空间 namespace 对应的 module 在 store 的 _modulesNamespaceMap 属性中
+      2、设置当前 module 为响应式、
+      3、设置当前 module 局部的 dispatch、commit 方法以及 getters 和 state
+      4、将局部的 mutations 注册到全局 store 的 _mutations 属性下、
+         将局部的 actions 注册到全局 store 的 _actions 属性下、
+         将局部的 getters 注册到全局 store 的 _wrappedGetters 属性下、
+         子 module 的安装
+    */
     installModule(this, this.state, path, this._modules.get(path), options.preserveState)
     // reset store to update getters...
+    /*store 组件的初始化：设置新的 store._vm 的 Vue 实例，主要是将 _wrappedGetters 作为 computed 属性*/
     resetStoreVM(this, this.state)
   }
 
