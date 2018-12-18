@@ -69,6 +69,7 @@ export function parsePath (path: string): {
   }
 }
 
+/*将传入的 path 中的双斜杠 替换成 一个斜杠*/
 export function cleanPath (path: string): string {
   return path.replace(/\/\//g, '/')
 }
