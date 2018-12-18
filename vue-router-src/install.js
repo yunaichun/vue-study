@@ -29,7 +29,7 @@ export function install (Vue) {
         /*通过 this._routerRoot._router 可以获取到 this.$options.router，为 router 的实例*/
         this._routerRoot = this
         this._router = this.$options.router
-        /* 调用 router 实例的 init 初始化方法*/
+        /* 调用 router 实例的 init 初始化方法，传入 vue 实例*/
         this._router.init(this)
         /*vue 实例的 _route 属性实现双向绑定触发组件渲染*/
         Vue.util.defineReactive(this, '_route', this._router.history.current)

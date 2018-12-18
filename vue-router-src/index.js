@@ -90,24 +90,24 @@ export default class VueRouter {
     return this.history && this.history.current
   }
 
+  /*install 方法会调用此 init 方法*/
   init (app: any /* Vue component instance */) {
+    /*install 方法被调用了，即先使用 Vue.use(VueRouter) 了*/
     process.env.NODE_ENV !== 'production' && assert(
       install.installed,
       `not installed. Make sure to call \`Vue.use(VueRouter)\` ` +
       `before creating root instance.`
     )
-
     this.apps.push(app)
-
+    /*app 是否已经初始化，初始化过后不再往下执行*/
     // main app already initialized.
     if (this.app) {
       return
     }
-
+    /*实例赋值，当前 Vue 实例*/
     this.app = app
 
     const history = this.history
-
     if (history instanceof HTML5History) {
       history.transitionTo(history.getCurrentLocation())
     } else if (history instanceof HashHistory) {
@@ -120,7 +120,7 @@ export default class VueRouter {
         setupHashListener
       )
     }
-
+    /*Route改变的回调监听*/
     history.listen(route => {
       this.apps.forEach((app) => {
         app._route = route

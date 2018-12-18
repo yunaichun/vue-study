@@ -31,22 +31,30 @@ export class History {
   +getCurrentLocation: () => string;
 
   constructor (router: Router, base: ?string) {
+    /*保存 VueRouter 实例*/
     this.router = router
+    /*规范化 VueRouter 传入参数 options.base*/
     this.base = normalizeBase(base)
     // start with a route object that stands for "nowhere"
+    /*默认的当前路由*/
     this.current = START
     this.pending = null
+    /*onReady 事件相关参数*/
     this.ready = false
     this.readyCbs = []
     this.readyErrorCbs = []
+    /*onError 事件相关参数*/
     this.errorCbs = []
   }
 
+  /*listen 监听函数*/
   listen (cb: Function) {
     this.cb = cb
   }
 
+  /*onReady 事件*/
   onReady (cb: Function, errorCb: ?Function) {
+    /*this.ready 状态为 true，执行 cb 回调，否则 cb 暂时存储 不执行*/
     if (this.ready) {
       cb()
     } else {
@@ -57,6 +65,7 @@ export class History {
     }
   }
 
+  /*onError 事件*/
   onError (errorCb: Function) {
     this.errorCbs.push(errorCb)
   }
@@ -181,34 +190,48 @@ export class History {
       })
     })
   }
-
+  
+  /*更新路由：route 是 VueRouter 实例*/
   updateRoute (route: Route) {
+    /*缓存之前 VueRouter 实例*/
     const prev = this.current
+    /*设置当前 VueRouter 实例*/
     this.current = route
+    /*执行 listen 监听函数*/
     this.cb && this.cb(route)
+    /*执行 afterHooks 钩子函数，传入当前 route 和之前 route 信息*/
     this.router.afterHooks.forEach(hook => {
       hook && hook(route, prev)
     })
   }
 }
 
+/*规范化 VueRouter 传入参数 options.base*/
 function normalizeBase (base: ?string): string {
+  /*base 为 false 或 undefined*/
   if (!base) {
+    /*浏览器环境*/
     if (inBrowser) {
       // respect <base> tag
       const baseEl = document.querySelector('base')
+      /*base 标签的 href 属性 或 '/'*/
       base = (baseEl && baseEl.getAttribute('href')) || '/'
       // strip full URL origin
+      /*https://baidu.com 转为空字符串*/
       base = base.replace(/^https?:\/\/[^\/]+/, '')
-    } else {
+    }
+    /*非浏览器环境*/
+    else {
       base = '/'
     }
   }
   // make sure there's the starting slash
+  /*保证开始字符是'/'*/
   if (base.charAt(0) !== '/') {
     base = '/' + base
   }
   // remove trailing slash
+  /*保证结尾字符不是'/'*/
   return base.replace(/\/$/, '')
 }
 
