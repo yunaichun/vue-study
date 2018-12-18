@@ -25,7 +25,7 @@ export function createMatcher (
   */
   const { pathList, pathMap, nameMap } = createRouteMap(routes)
 
-  /*二、添加路由函数*/
+  /*二、添加路由函数：根据 routes 配置对象创建路由 map*/
   function addRoutes (routes) {
     createRouteMap(routes, pathList, pathMap, nameMap)
   }

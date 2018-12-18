@@ -39,9 +39,8 @@ export default class VueRouter {
     this.beforeHooks = []
     this.resolveHooks = []
     this.afterHooks = []
-    /*一、创建路由 match 匹配函数*/
+    /*一、创建路由 match 匹配函数：1、addRoutes 函数 - 添加路由函数：根据 routes 配置对象创建路由 map、2、match 函数 - 添加路由匹配*/
     this.matcher = createMatcher(options.routes || [], this)
-
 
     /*根据 mode 采取不同的路由方式*/
     let mode = options.mode || 'hash'
@@ -78,6 +77,47 @@ export default class VueRouter {
     }
   }
 
+  /*install 方法会调用此 init 方法，传入的是 Vue 实例*/
+  init (app: any /* Vue component instance */) {
+    /*install 方法被调用了，即先使用 Vue.use(VueRouter) 了*/
+    process.env.NODE_ENV !== 'production' && assert(
+      install.installed,
+      `not installed. Make sure to call \`Vue.use(VueRouter)\` ` +
+      `before creating root instance.`
+    )
+    this.apps.push(app)
+    /*app 是否已经初始化，初始化过后不再往下执行（保证此函数只会调用一次）*/
+    // main app already initialized.
+    if (this.app) {
+      return
+    }
+    /*实例赋值，当前 Vue 实例*/
+    this.app = app
+
+    const history = this.history
+    if (history instanceof HTML5History) {
+      /*case 'history': 调用 history 实例的 transitionTo 方法、传入 history.getCurrentLocation()*/
+      history.transitionTo(history.getCurrentLocation())
+    } else if (history instanceof HashHistory) {
+      const setupHashListener = () => {
+        history.setupListeners()
+      }
+      /*case 'hash': 调用 history 实例的 transitionTo 方法、传入 history.getCurrentLocation() + history.setupListeners()*/
+      history.transitionTo(
+        history.getCurrentLocation(),
+        setupHashListener,
+        setupHashListener
+      )
+    }
+    /*history 的 listen 监听函数*/
+    history.listen(route => {
+      this.apps.forEach((app) => {
+        app._route = route
+      })
+    })
+  }
+
+  /*match 方法即为 createMatcher 方法返回的 match 方法*/
   match (
     raw: RawLocation,
     current?: Route,
@@ -89,45 +129,7 @@ export default class VueRouter {
   get currentRoute (): ?Route {
     return this.history && this.history.current
   }
-
-  /*install 方法会调用此 init 方法*/
-  init (app: any /* Vue component instance */) {
-    /*install 方法被调用了，即先使用 Vue.use(VueRouter) 了*/
-    process.env.NODE_ENV !== 'production' && assert(
-      install.installed,
-      `not installed. Make sure to call \`Vue.use(VueRouter)\` ` +
-      `before creating root instance.`
-    )
-    this.apps.push(app)
-    /*app 是否已经初始化，初始化过后不再往下执行*/
-    // main app already initialized.
-    if (this.app) {
-      return
-    }
-    /*实例赋值，当前 Vue 实例*/
-    this.app = app
-
-    const history = this.history
-    if (history instanceof HTML5History) {
-      history.transitionTo(history.getCurrentLocation())
-    } else if (history instanceof HashHistory) {
-      const setupHashListener = () => {
-        history.setupListeners()
-      }
-      history.transitionTo(
-        history.getCurrentLocation(),
-        setupHashListener,
-        setupHashListener
-      )
-    }
-    /*Route改变的回调监听*/
-    history.listen(route => {
-      this.apps.forEach((app) => {
-        app._route = route
-      })
-    })
-  }
-
+  
   beforeEach (fn: Function): Function {
     return registerHook(this.beforeHooks, fn)
   }
