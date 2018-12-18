@@ -39,18 +39,28 @@ export default class VueRouter {
     this.beforeHooks = []
     this.resolveHooks = []
     this.afterHooks = []
+    /*一、创建路由 match 匹配函数*/
     this.matcher = createMatcher(options.routes || [], this)
 
+
+    /*根据 mode 采取不同的路由方式*/
     let mode = options.mode || 'hash'
+    /*https://github.com/vuejs/vue-router/releases/tag/v2.6.0
+      1、options.fallback 是2.6.0 新增, 表示是否对不支持 HTML5 history 的浏览器采用降级处理
+      2、options.mode = 'history' && 非浏览器/浏览器不支持 'pushState' && options.fallback = true/undefined
+    */
     this.fallback = mode === 'history' && !supportsPushState && options.fallback !== false
+    /*兼容不支持 history 的浏览器*/
     if (this.fallback) {
       mode = 'hash'
     }
+    /*非浏览器环境*/
     if (!inBrowser) {
       mode = 'abstract'
     }
     this.mode = mode
 
+    /*二、根据 mode 创建 history 实例*/
     switch (mode) {
       case 'history':
         this.history = new HTML5History(this, options.base)

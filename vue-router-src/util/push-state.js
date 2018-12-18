@@ -3,6 +3,7 @@
 import { inBrowser } from './dom'
 import { saveScrollPosition } from './scroll'
 
+/*浏览器是否支持  pushState 方法*/
 export const supportsPushState = inBrowser && (function () {
   const ua = window.navigator.userAgent
 
