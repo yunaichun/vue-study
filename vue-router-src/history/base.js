@@ -36,7 +36,7 @@ export class History {
     /*规范化 VueRouter 传入参数 options.base*/
     this.base = normalizeBase(base)
     // start with a route object that stands for "nowhere"
-    /*根路由 '/' 路由 url.parse 对象*/
+    /*根路由 '/' 路由 url.parse 对象（根据 util/route.js 文件的 createRoute 方法创建）*/
     this.current = START
     this.pending = null
     /*onReady 事件相关参数*/
@@ -71,11 +71,21 @@ export class History {
   }
  
   transitionTo (
-    location: RawLocation, /*pathname + search + hash*/
+    /*location 参数含义：
+      根据 base 获取浏览器 window 地址location：pathname + search + hash（对 HTML5History 来说）
+      获取浏览器 window 地址的 hash 值（对 HashHistory 来说） 
+      非浏览器环境获取 stack 数组最后一项的 fullPath（对 AbstractHistory 来说）
+    */
+    location: RawLocation,
     onComplete?: Function, /*成功回调函数*/
     onAbort?: Function /*失败回调函数*/
   ) {
-    /*1、参数一：pathname + search + hash 2、参数二：根路由 '/' 路由 url.parse 对象*/
+    /* 添加路由匹配
+      1、参数一：根据 base 获取浏览器 window 地址location：pathname + search + hash（对 HTML5History 来说）
+                 获取浏览器 window 地址的 hash 值（对 HashHistory 来说） 
+                 非浏览器环境获取 stack 数组最后一项的 fullPath（对 AbstractHistory 来说） 
+      2、参数二：根路由 '/' 路由 url.parse 对象（根据 util/route.js 文件的 createRoute 方法创建）
+    */
     const route = this.router.match(location, this.current)
     this.confirmTransition(route, () => {
       this.updateRoute(route)

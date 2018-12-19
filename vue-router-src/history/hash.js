@@ -73,9 +73,19 @@ export class HashHistory extends History {
     }
   }
 
+  /*获取浏览器 window 地址的 hash 值*/
   getCurrentLocation () {
     return getHash()
   }
+}
+
+/*获取浏览器 window 地址的 hash 值*/
+export function getHash (): string {
+  // We can't use window.location.hash here because it's not
+  // consistent across browsers - Firefox will pre-decode it!
+  const href = window.location.href
+  const index = href.indexOf('#')
+  return index === -1 ? '' : decodeURI(href.slice(index + 1))
 }
 
 function checkFallback (base) {
@@ -95,14 +105,6 @@ function ensureSlash (): boolean {
   }
   replaceHash('/' + path)
   return false
-}
-
-export function getHash (): string {
-  // We can't use window.location.hash here because it's not
-  // consistent across browsers - Firefox will pre-decode it!
-  const href = window.location.href
-  const index = href.indexOf('#')
-  return index === -1 ? '' : decodeURI(href.slice(index + 1))
 }
 
 function getUrl (path) {

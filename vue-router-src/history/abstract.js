@@ -40,6 +40,7 @@ export class AbstractHistory extends History {
     })
   }
 
+  /*非浏览器环境获取 stack 数组最后一项的 fullPath*/
   getCurrentLocation () {
     const current = this.stack[this.stack.length - 1]
     return current ? current.fullPath : '/'

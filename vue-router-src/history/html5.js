@@ -69,13 +69,13 @@ export class HTML5History extends History {
     }
   }
 
-  /*根据 base 获取地址 location*/ 
+  /*根据 base 获取浏览器 window 地址location：pathname + search + hash*/ 
   getCurrentLocation (): string {
     return getLocation(this.base)
   }
 }
 
-/*根据 base 获取地址 location：pathname + search + hash*/ 
+/*根据 base 获取浏览器 window 地址location：pathname + search + hash*/ 
 export function getLocation (base: string): string {
   /*解码 window.location.pathname*/ 
   let path = decodeURI(window.location.pathname)

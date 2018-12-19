@@ -32,6 +32,12 @@ export function createMatcher (
 
   /*二、添加路由匹配*/
   function match (
+    /* 
+    1、参数一：根据 base 获取浏览器 window 地址location：pathname + search + hash（对 HTML5History 来说）
+               获取浏览器 window 地址的 hash 值（对 HashHistory 来说） 
+               非浏览器环境获取 stack 数组最后一项的 fullPath（对 AbstractHistory 来说） 
+    2、参数二：根路由 '/' 路由 url.parse 对象（根据 util/route.js 文件的 createRoute 方法创建）
+    */
     raw: RawLocation,
     currentRoute?: Route,
     redirectedFrom?: Location
