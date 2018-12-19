@@ -16,7 +16,7 @@ export type Matcher = {
 /*根据传入的 routes 配置对象 创建路由映射表*/
 export function createMatcher (
   routes: Array<RouteConfig>, /*routes 配置对象*/
-  router: VueRouter /*router 实例*/
+  router: VueRouter /*VueRouter 实例*/
 ): Matcher {
   /*一、根据 routes 配置对象创建路由 map：
     pathList：存储所有路由配置的 path
@@ -25,18 +25,18 @@ export function createMatcher (
   */
   const { pathList, pathMap, nameMap } = createRouteMap(routes)
 
-  /*二、添加路由函数：根据 routes 配置对象创建路由 map*/
+  /*二、添加路由函数：根据 routes 配置对象创建路由 map（index.js 文件的 addRoutes 方法调用）*/
   function addRoutes (routes) {
     createRouteMap(routes, pathList, pathMap, nameMap)
   }
 
-  /*二、添加路由匹配*/
+  /*二、添加路由匹配（history/base.js 文件 transitionTo 方法调用）*/
   function match (
-    /* 
-    1、参数一：根据 base 获取浏览器 window 地址location：pathname + search + hash（对 HTML5History 来说）
-               获取浏览器 window 地址的 hash 值（对 HashHistory 来说） 
-               非浏览器环境获取 stack 数组最后一项的 fullPath（对 AbstractHistory 来说） 
-    2、参数二：根路由 '/' 路由 url.parse 对象（根据 util/route.js 文件的 createRoute 方法创建）
+    /*1、参数一：根据 base 获取浏览器 window 地址location：pathname + search + hash（对 HTML5History 来说）
+                 获取浏览器 window 地址的 hash 值（对 HashHistory 来说） 
+                 非浏览器环境获取 stack 数组最后一项的 fullPath（对 AbstractHistory 来说） 
+      2、参数二：根路由 '/' 路由 url.parse 对象（根据 util/route.js 文件的 createRoute 方法创建）
+      3、参数三：参数值与 参数一 类似
     */
     raw: RawLocation,
     currentRoute?: Route,

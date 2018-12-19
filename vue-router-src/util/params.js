@@ -8,9 +8,13 @@ const regexpCompileCache: {
   [key: string]: Function
 } = Object.create(null)
 
+/*将动态路由解析成对象的形式：
+  例：let toPath = Regexp.compile('/user/:id')
+      toPath({ id: 123 }) //=> "/user/123"
+*/
 export function fillParams (
-  path: string,
-  params: ?Object,
+  path: string, /*浏览器 path*/
+  params: ?Object, /*浏览器 params*/
   routeMsg: string
 ): string {
   try {

@@ -17,8 +17,12 @@ export const START = createRoute(null, {
 */
 export function createRoute (
   record: ?RouteRecord,
-  location: Location, /*location：name + path + hash + params*/
-  redirectedFrom?: ?Location, /*从哪里跳转过来的*/
+  /*1、根据 base 获取浏览器 window 地址location：pathname + search + hash（对 HTML5History 来说）
+    2、获取浏览器 window 地址的 hash 值（对 HashHistory 来说） 
+    3、非浏览器环境获取 stack 数组最后一项的 fullPath（对 AbstractHistory 来说）
+  */
+  location: Location,
+  redirectedFrom?: ?Location, /*从哪里跳转过来的：参数值与 location 类似*/
   router?: VueRouter /*VueRouter 实例 this*/
 ): Route {
   /*VueRouter 配置对象的 stringifyQuery*/
