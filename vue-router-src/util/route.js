@@ -5,19 +5,33 @@ import { stringifyQuery } from './query'
 
 const trailingSlashRE = /\/?$/
 
+// the starting route that represents the initial state
+/*根路由 '/' 路由 url.parse 对象*/
+export const START = createRoute(null, {
+  path: '/'
+})
+/*创建路由 url.parse 对象：
+  一、location 地址的 query 参数的克隆
+  二、配置 route 对象：根据参数组装成 url.parse 对象
+  三、存在 redirectedFrom 参数：添加至 route 对象
+*/
 export function createRoute (
   record: ?RouteRecord,
-  location: Location,
-  redirectedFrom?: ?Location,
-  router?: VueRouter
+  location: Location, /*location：name + path + hash + params*/
+  redirectedFrom?: ?Location, /*从哪里跳转过来的*/
+  router?: VueRouter /*VueRouter 实例 this*/
 ): Route {
+  /*VueRouter 配置对象的 stringifyQuery*/
   const stringifyQuery = router && router.options.stringifyQuery
 
+  /*location 地址的 query 参数*/
   let query: any = location.query || {}
+  /*一、location 地址的 query 参数的克隆*/
   try {
     query = clone(query)
   } catch (e) {}
 
+  /*二、配置 route 对象：根据参数组装成 url.parse 对象*/
   const route: Route = {
     name: location.name || (record && record.name),
     meta: (record && record.meta) || {},
@@ -25,49 +39,66 @@ export function createRoute (
     hash: location.hash || '',
     query,
     params: location.params || {},
-    fullPath: getFullPath(location, stringifyQuery),
-    matched: record ? formatMatch(record) : []
+    fullPath: getFullPath(location, stringifyQuery), /*获取完成的 location 路径：包含 query 参数的 stringifyQuery*/
+    matched: record ? formatMatch(record) : [] /*格式化 match：不断找 record 的 parent 属性*/
   }
+  /*三、存在 redirectedFrom 参数：添加至 route 对象*/
   if (redirectedFrom) {
     route.redirectedFrom = getFullPath(redirectedFrom, stringifyQuery)
   }
+  /*Object.freeze()阻止修改现有属性的特性和值，并阻止添加新属性：可以利用这个方法将对象彻底冻结，使其符合const变量的含义*/
   return Object.freeze(route)
 }
 
+/*location 的 query 查询参数的克隆操作：
+  例：value = { foo: [1, 2], bar: { a: 1, b: 2 }, test: 2 }
+  最终返回：value = { foo: [1, 2], bar: { a: 1, b: 2 }, test: 2 }
+*/
 function clone (value) {
+  /*查询参数 query 是数组*/
   if (Array.isArray(value)) {
+    /*循环遍历每一项*/
     return value.map(clone)
-  } else if (value && typeof value === 'object') {
+  }
+  /*查询参数是对象*/
+  else if (value && typeof value === 'object') {
     const res = {}
+    /*循环遍历每一项*/
     for (const key in value) {
       res[key] = clone(value[key])
     }
     return res
-  } else {
+  }
+  /*查询参数是普通值*/
+  else {
     return value
   }
 }
 
-// the starting route that represents the initial state
-export const START = createRoute(null, {
-  path: '/'
-})
+/*获取完成的 location 路径：包含 query 参数的 stringifyQuery
+  例：query = { foo: [1, 2], bar: { a: 1, b: 2 }, test: 2 };
+      stringify(query) => "?foo=1&foo=2&bar=%5Bobject%20Object%5D&test=2"
+*/
+function getFullPath (
+  { path, query = {}, hash = '' }, /*location：name + path + hash + params*/
+  _stringifyQuery /*VueRouter 配置对象的 stringifyQuery*/
+): string {
+  /*query 参数的 stringify：变为*/
+  const stringify = _stringifyQuery || stringifyQuery
+  /*返回 path + query + hash*/
+  return (path || '/') + stringify(query) + hash
+}
 
+/*格式化 match：不断找 record 的 parent 属性*/
 function formatMatch (record: ?RouteRecord): Array<RouteRecord> {
   const res = []
   while (record) {
     res.unshift(record)
+    /*不断找其 parent 属性*/
     record = record.parent
   }
+  /*将传入的参数 丢进栈*/
   return res
-}
-
-function getFullPath (
-  { path, query = {}, hash = '' },
-  _stringifyQuery
-): string {
-  const stringify = _stringifyQuery || stringifyQuery
-  return (path || '/') + stringify(query) + hash
 }
 
 export function isSameRoute (a: Route, b: ?Route): boolean {

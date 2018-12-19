@@ -13,8 +13,8 @@ import {
 } from '../util/resolve-components'
 
 export class History {
-  router: Router;
-  base: string;
+  router: Router; /*VueRouter 实例 this*/
+  base: string; /*VueRouter 实例 配置项 options.base*/
   current: Route;
   pending: ?Route;
   cb: (r: Route) => void;
@@ -36,7 +36,7 @@ export class History {
     /*规范化 VueRouter 传入参数 options.base*/
     this.base = normalizeBase(base)
     // start with a route object that stands for "nowhere"
-    /*默认的当前路由*/
+    /*根路由 '/' 路由 url.parse 对象*/
     this.current = START
     this.pending = null
     /*onReady 事件相关参数*/
@@ -69,8 +69,13 @@ export class History {
   onError (errorCb: Function) {
     this.errorCbs.push(errorCb)
   }
-
-  transitionTo (location: RawLocation, onComplete?: Function, onAbort?: Function) {
+ 
+  transitionTo (
+    location: RawLocation, /*pathname + search + hash*/
+    onComplete?: Function, /*成功回调函数*/
+    onAbort?: Function /*失败回调函数*/
+  ) {
+    /*1、参数一：pathname + search + hash 2、参数二：根路由 '/' 路由 url.parse 对象*/
     const route = this.router.match(location, this.current)
     this.confirmTransition(route, () => {
       this.updateRoute(route)

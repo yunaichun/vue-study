@@ -8,7 +8,10 @@ import { setupScroll, handleScroll } from '../util/scroll'
 import { pushState, replaceState, supportsPushState } from '../util/push-state'
 
 export class HTML5History extends History {
+  /*router：VueRouter 实例 this*/
+  /*base：VueRouter 实例 配置项 options.base*/
   constructor (router: Router, base: ?string) {
+    /*继承 History 属性和方法*/
     super(router, base)
 
     const expectScroll = router.options.scrollBehavior
@@ -66,15 +69,21 @@ export class HTML5History extends History {
     }
   }
 
+  /*根据 base 获取地址 location*/ 
   getCurrentLocation (): string {
     return getLocation(this.base)
   }
 }
 
+/*根据 base 获取地址 location：pathname + search + hash*/ 
 export function getLocation (base: string): string {
+  /*解码 window.location.pathname*/ 
   let path = decodeURI(window.location.pathname)
+  /*base 存在并且 base 在 path 中的位置是第一位*/
   if (base && path.indexOf(base) === 0) {
+    /*去除掉 path 中的 base*/
     path = path.slice(base.length)
   }
+  /*pathname + search + hash*/
   return (path || '/') + window.location.search + window.location.hash
 }
