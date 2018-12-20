@@ -42,6 +42,7 @@ export function createMatcher (
     currentRoute?: Route,
     redirectedFrom?: Location
   ): Route {
+    /*规范化处理 location：1、字符串 path 2、对象 query 3、字符串 hash*/
     const location = normalizeLocation(raw, currentRoute, false, router)
     const { name } = location
 

@@ -83,46 +83,66 @@ export function stringifyQuery (obj: Dictionary<string>): string {
   return res ? `?${res}` : ''
 }
 
+/*query 参数处理：
+  例：parseQuery('a=1&a=1&b=2')
+  结果：{a: [1, 1], b: "2"}
+*/
 export function resolveQuery (
-  query: ?string,
-  extraQuery: Dictionary<string> = {},
-  _parseQuery: ?Function
+  query: ?string, /*初始 query 参数*/
+  extraQuery: Dictionary<string> = {}, /*额外 query 参数*/
+  _parseQuery: ?Function /*query 解析函数*/
 ): Dictionary<string> {
   const parse = _parseQuery || parseQuery
   let parsedQuery
   try {
+    /*解析 query 参数*/
     parsedQuery = parse(query || '')
   } catch (e) {
     process.env.NODE_ENV !== 'production' && warn(false, e.message)
     parsedQuery = {}
   }
+  /*将额外 query 参数混入到初始 query 参数*/
   for (const key in extraQuery) {
     parsedQuery[key] = extraQuery[key]
   }
   return parsedQuery
 }
 
+/*解析 query 参数
+  例：parseQuery('a=1&a=1&b=2')
+  结果：{a: [1, 1], b: "2"}
+*/
 function parseQuery (query: string): Dictionary<string> {
   const res = {}
 
+  /*query 参数去除左右空格，同时将 ?|#|& 符号去除*/
   query = query.trim().replace(/^(\?|#|&)/, '')
 
   if (!query) {
     return res
   }
 
+  /*遍历 query 参数*/
   query.split('&').forEach(param => {
+    /*解析出 query 的每一项*/
     const parts = param.replace(/\+/g, ' ').split('=')
+    /*query 的 key*/
     const key = decode(parts.shift())
+    /*query 的 value*/
     const val = parts.length > 0
       ? decode(parts.join('='))
       : null
 
+    /*res[key] 初始没有值*/
     if (res[key] === undefined) {
       res[key] = val
-    } else if (Array.isArray(res[key])) {
+    }
+    /*res[key] 初始有值，值为数组*/
+    else if (Array.isArray(res[key])) {
       res[key].push(val)
-    } else {
+    }
+    /*res[key] 初始有值，值不为数组*/
+    else {
       res[key] = [res[key], val]
     }
   })

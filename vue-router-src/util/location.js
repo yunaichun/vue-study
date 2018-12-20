@@ -61,7 +61,7 @@ export function normalizeLocation (
     return next
   }
 
-  /*三、其余情况*/
+  /*三、处理 path*/
   /*相对路径：返回 url 的 Path 中解析出的 path、query、hash*/
   const parsedPath = parsePath(next.path || '')
   /*基础路径：根路由 '/' 路由 url.parse 对象*/
@@ -71,21 +71,24 @@ export function normalizeLocation (
     ? resolvePath(parsedPath.path, basePath, append || next.append)
     : basePath
 
+  /*四、处理 query*/
   const query = resolveQuery(
     parsedPath.query,
     next.query,
     router && router.options.parseQuery
   )
 
+  /*五、处理 hash*/
   let hash = next.hash || parsedPath.hash
   if (hash && hash.charAt(0) !== '#') {
     hash = `#${hash}`
   }
 
+  /*最终返回规范化处理的 path、query、hash*/
   return {
     _normalized: true,
-    path,
-    query,
-    hash
+    path, /*字符串*/
+    query, /*对象*/
+    hash /*字符串*/
   }
 }
