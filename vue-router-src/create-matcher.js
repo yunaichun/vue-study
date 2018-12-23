@@ -117,7 +117,7 @@ export function createMatcher (
     return createRoute(record, location, redirectedFrom, router)
   }
 
-  /*路由映射表存在 redirect：重定向*/
+  /*一、路由映射表存在 redirect：重定向*/
   function redirect (
     record: RouteRecord, /*路由映射表*/
     location: Location /*规范化处理 location：1、字符串 path 2、对象 query 3、字符串 hash*/
@@ -200,23 +200,31 @@ export function createMatcher (
     }
   }
 
-  /*路由映射表存在 matchAs：重定向*/
+  /*二、路由映射表存在 matchAs*/
   function alias (
-    record: RouteRecord,
-    location: Location,
-    matchAs: string
+    record: RouteRecord, /*路由映射表*/
+    location: Location, /*规范化处理 location：1、字符串 path 2、对象 query 3、字符串 hash*/
+    matchAs: string /*路由映射表中的 matchAs*/
   ): Route {
+    /*将动态路由解析成对象的形式：
+      例：let toPath = Regexp.compile('/user/:id')
+          toPath({ id: 123 }) //=> "/user/123"
+    */
     const aliasedPath = fillParams(matchAs, location.params, `aliased route with path "${matchAs}"`)
+    /*重新构建路由匹配*/
     const aliasedMatch = match({
       _normalized: true,
       path: aliasedPath
     })
+    /*如果路由匹配对象存在：创建路由*/
     if (aliasedMatch) {
       const matched = aliasedMatch.matched
       const aliasedRecord = matched[matched.length - 1]
       location.params = aliasedMatch.params
+      /*创建 matchAs 路由*/
       return _createRoute(aliasedRecord, location)
     }
+    /*如果路由匹配对象不存在：创建 matchAs 空路由*/
     return _createRoute(null, location)
   }
 
