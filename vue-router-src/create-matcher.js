@@ -54,16 +54,20 @@ export function createMatcher (
       if (process.env.NODE_ENV !== 'production') {
         warn(record, `Route with name '${name}' does not exist`)
       }
+      /* 路由映射表中不含有此 name 的路由：创建空路由*/
       if (!record) return _createRoute(null, location)
 
+      /*路由映射表中的 key*/
       const paramNames = record.regex.keys
         .filter(key => !key.optional)
         .map(key => key.name)
 
+      /*规范化处理 location 中的 params*/
       if (typeof location.params !== 'object') {
         location.params = {}
       }
 
+      /*规范化处理 location 中的 params 处理：混入 根路由 '/' 路由 url.parse 对象的 params 参数*/
       if (currentRoute && typeof currentRoute.params === 'object') {
         for (const key in currentRoute.params) {
           if (!(key in location.params) && paramNames.indexOf(key) > -1) {
@@ -72,17 +76,26 @@ export function createMatcher (
         }
       }
 
+      /* 路由映射表中含有此 name 的路由：创建路由*/
       if (record) {
+        /*将动态路由解析成对象的形式：
+          例：let toPath = Regexp.compile('/user/:id')
+              toPath({ id: 123 }) //=> "/user/123"
+        */
         location.path = fillParams(record.path, location.params, `named route "${name}"`)
+        /*创建指定路由*/
         return _createRoute(record, location, redirectedFrom)
       }
     }
     /*二、路由 url.parse 对象中不含有 name，但是 path 存在*/
     else if (location.path) {
       location.params = {}
+      /*遍历所有路由配置的 path*/
       for (let i = 0; i < pathList.length; i++) {
         const path = pathList[i]
+        /*path <=> 路由记录 映射表*/
         const record = pathMap[path]
+        /*匹配到指定 path 的路由后：创建指定路由*/
         if (matchRoute(record.regex, location.path, location.params)) {
           return _createRoute(record, location, redirectedFrom)
         }
@@ -109,7 +122,7 @@ export function createMatcher (
     if (record && record.redirect) {
       return redirect(record, redirectedFrom || location)
     }
-    /*二、路由映射表存在 matchAs：重定向*/
+    /*二、路由映射表存在 matchAs：动态路由*/
     if (record && record.matchAs) {
       return alias(record, location, record.matchAs)
     }
@@ -200,7 +213,7 @@ export function createMatcher (
     }
   }
 
-  /*二、路由映射表存在 matchAs*/
+  /*二、路由映射表存在 matchAs：动态路由*/
   function alias (
     record: RouteRecord, /*路由映射表*/
     location: Location, /*规范化处理 location：1、字符串 path 2、对象 query 3、字符串 hash*/
@@ -235,22 +248,31 @@ export function createMatcher (
   }
 }
 
+/*是否匹配上指定的路由*/
 function matchRoute (
-  regex: RouteRegExp,
-  path: string,
-  params: Object
+  regex: RouteRegExp,/* 路由映射表中 regex 属性*/
+  path: string, /*规范化处理 location（1、字符串 path 2、对象 query 3、字符串 hash）中的 path*/
+  params: Object /*规范化处理 location（1、字符串 path 2、对象 query 3、字符串 hash）中的 params*/
 ): boolean {
+  /*path 是否匹配上 regex*/
   const m = path.match(regex)
 
+  /*path 没有匹配上 regex*/
   if (!m) {
     return false
-  } else if (!params) {
+  }
+  /*path 匹配上 regex，同时没有传动态路由*/
+  else if (!params) {
     return true
   }
 
+  /*path 匹配上 regex，传动态路由：遍历匹配项*/
   for (let i = 1, len = m.length; i < len; ++i) {
+    /*匹配的 key*/
     const key = regex.keys[i - 1]
+    /*匹配的 value*/
     const val = typeof m[i] === 'string' ? decodeURIComponent(m[i]) : m[i]
+    /*匹配的 key 存在*/
     if (key) {
       // Fix #1994: using * with props: true generates a param named 0
       params[key.name || 'pathMatch'] = val
