@@ -69,7 +69,8 @@ export class History {
   onError (errorCb: Function) {
     this.errorCbs.push(errorCb)
   }
- 
+
+  /*跳转路由封装*/
   transitionTo (
     /*location 参数含义：
       根据 base 获取浏览器 window 地址location：pathname + search + hash（对 HTML5History 来说）
@@ -88,11 +89,15 @@ export class History {
     */
     const route = this.router.match(location, this.current)
     this.confirmTransition(route, () => {
+      /*更新路由：route 是 VueRouter 实例*/
       this.updateRoute(route)
+      /*执行 onComplete 函数*/
       onComplete && onComplete(route)
+      /*利用浏览器：window.history.replaceState*/
       this.ensureURL()
 
       // fire ready cbs once
+      /*执行 readyCbs 回调函数*/
       if (!this.ready) {
         this.ready = true
         this.readyCbs.forEach(cb => { cb(route) })
@@ -101,6 +106,7 @@ export class History {
       if (onAbort) {
         onAbort(err)
       }
+      /*执行 readyErrorCbs 回调函数*/
       if (err && !this.ready) {
         this.ready = true
         this.readyErrorCbs.forEach(cb => { cb(err) })
@@ -108,8 +114,19 @@ export class History {
     })
   }
 
-  confirmTransition (route: Route, onComplete: Function, onAbort?: Function) {
+  /* 确认跳转：
+    1、参数一：匹配的路由
+    2、参数二：匹配成功的回调
+    3、参数三：匹配失败的回调 
+  */
+  confirmTransition (
+    route: Route, /*匹配的路由对象*/
+    onComplete: Function, /*成功回调函数*/
+    onAbort?: Function /*失败回调函数*/
+  ) {
+    /*当前的路由对象*/
     const current = this.current
+    /*对 onAbort 的封装*/
     const abort = err => {
       if (isError(err)) {
         if (this.errorCbs.length) {
@@ -121,15 +138,19 @@ export class History {
       }
       onAbort && onAbort(err)
     }
+
+    /*一、匹配的路由和当前的路由对象相同不跳转*/
     if (
       isSameRoute(route, current) &&
       // in the case the route map has been dynamically appended to
       route.matched.length === current.matched.length
     ) {
+      /*利用浏览器：window.history.replaceState*/
       this.ensureURL()
       return abort()
     }
 
+    /*根据当前路由对象和匹配的路由：返回更新的路由、停用的路由、激活的路由*/
     const {
       updated,
       deactivated,
@@ -138,29 +159,39 @@ export class History {
 
     const queue: Array<?NavigationGuard> = [].concat(
       // in-component leave guards
+      /*1、停用的路由：beforeRouteLeave 钩子函数调用*/
       extractLeaveGuards(deactivated),
       // global before hooks
+      /*2、beforeHooks*/
       this.router.beforeHooks,
       // in-component update hooks
+      /*3、更新的路由：beforeRouteUpdate 钩子函数调用*/
       extractUpdateHooks(updated),
       // in-config enter guards
+      /*4、激活的路由：beforeEnter 钩子函数调用*/
       activated.map(m => m.beforeEnter),
       // async components
+      /*5、处理异步激活的路由组件*/
       resolveAsyncComponents(activated)
     )
 
     this.pending = route
+    /*遍历器对象*/
     const iterator = (hook: NavigationGuard, next) => {
       if (this.pending !== route) {
         return abort()
       }
       try {
         hook(route, current, (to: any) => {
+          /*没有正确到达的路由 to */
           if (to === false || isError(to)) {
             // next(false) -> abort navigation, ensure current URL
+            /*利用浏览器：window.history.pushState*/
             this.ensureURL(true)
             abort(to)
-          } else if (
+          }
+          /*有正确到达的路由 to */
+          else if (
             typeof to === 'string' ||
             (typeof to === 'object' && (
               typeof to.path === 'string' ||
@@ -169,12 +200,17 @@ export class History {
           ) {
             // next('/') or next({ path: '/' }) -> redirect
             abort()
+            /*正确到达的路由 to 有 replace：*/
             if (typeof to === 'object' && to.replace) {
               this.replace(to)
-            } else {
+            }
+            /*正确到达的路由 to 没有 replace：*/
+            else {
               this.push(to)
             }
-          } else {
+          }
+          /*其他情况：next 下一个*/
+          else {
             // confirm transition and pass on the value
             next(to)
           }
@@ -184,18 +220,23 @@ export class History {
       }
     }
 
+    /*自动执行异步任务队列*/
     runQueue(queue, iterator, () => {
       const postEnterCbs = []
       const isValid = () => this.current === route
       // wait until async components are resolved before
       // extracting in-component enter guards
+      /*激活的路由：beforeRouteEnter 钩子函数调用*/
       const enterGuards = extractEnterGuards(activated, postEnterCbs, isValid)
+      /*resolveHooks*/
       const queue = enterGuards.concat(this.router.resolveHooks)
+      /*再一次自动执行异步任务队列*/
       runQueue(queue, iterator, () => {
         if (this.pending !== route) {
           return abort()
         }
         this.pending = null
+        /*完成事件*/
         onComplete(route)
         if (this.router.app) {
           this.router.app.$nextTick(() => {
@@ -250,14 +291,16 @@ function normalizeBase (base: ?string): string {
   return base.replace(/\/$/, '')
 }
 
+/*根据当前路由对象和匹配的路由：返回更新的路由、激活的路由、停用的路由*/
 function resolveQueue (
-  current: Array<RouteRecord>,
-  next: Array<RouteRecord>
+  current: Array<RouteRecord>, /*当前的路由对象的matched*/
+  next: Array<RouteRecord> /*匹配的路由的matched*/
 ): {
   updated: Array<RouteRecord>,
   activated: Array<RouteRecord>,
   deactivated: Array<RouteRecord>
 } {
+  /*找到当前路由改变的 index*/
   let i
   const max = Math.max(current.length, next.length)
   for (i = 0; i < max; i++) {
@@ -266,56 +309,73 @@ function resolveQueue (
     }
   }
   return {
-    updated: next.slice(0, i),
-    activated: next.slice(i),
-    deactivated: current.slice(i)
+    updated: next.slice(0, i), /*更新的路由*/
+    activated: next.slice(i), /*激活的路由*/
+    deactivated: current.slice(i) /*停用的路由*/
   }
 }
 
-function extractGuards (
-  records: Array<RouteRecord>,
-  name: string,
-  bind: Function,
-  reverse?: boolean
-): Array<?Function> {
-  const guards = flatMapComponents(records, (def, instance, match, key) => {
-    const guard = extractGuard(def, name)
-    if (guard) {
-      return Array.isArray(guard)
-        ? guard.map(guard => bind(guard, instance, match, key))
-        : bind(guard, instance, match, key)
-    }
-  })
-  return flatten(reverse ? guards.reverse() : guards)
-}
-
-function extractGuard (
-  def: Object | Function,
-  key: string
-): NavigationGuard | Array<NavigationGuard> {
-  if (typeof def !== 'function') {
-    // extend now so that global mixins are applied.
-    def = _Vue.extend(def)
-  }
-  return def.options[key]
-}
-
-function extractLeaveGuards (deactivated: Array<RouteRecord>): Array<?Function> {
-  return extractGuards(deactivated, 'beforeRouteLeave', bindGuard, true)
-}
-
-function extractUpdateHooks (updated: Array<RouteRecord>): Array<?Function> {
-  return extractGuards(updated, 'beforeRouteUpdate', bindGuard)
-}
-
+/*instance 调用 guard 函数*/
 function bindGuard (guard: NavigationGuard, instance: ?_Vue): ?NavigationGuard {
+  /*是 Vue 的实例*/
   if (instance) {
     return function boundRouteGuard () {
+      /*instance 调用 guard 函数*/
       return guard.apply(instance, arguments)
     }
   }
 }
 
+/*提取指定 name 的路由钩子函数*/
+function extractGuards (
+  records: Array<RouteRecord>, /*停用的路由*/
+  name: string, /*beforeRouteLeave*/
+  bind: Function, /*bindGuard 函数*/
+  reverse?: boolean /*是否 reverse*/
+): Array<?Function> {
+  /*返回 停用的路由 map 出的新路由，map 的函数是 fn*/
+  const guards = flatMapComponents(records,
+    /*records[i].components[key]、records[i].instances[key]、records[i]、i*/
+    (def, instance, match, key) => {
+      /*返回 key 路由 对应的组件*/
+      const guard = extractGuard(def, name)
+      /*组件存在的话*/
+      if (guard) {
+        return Array.isArray(guard)
+          ? guard.map(guard => bind(guard, instance, match, key))
+          : bind(guard, instance, match, key) /*instance 调用 guard 函数*/
+      }
+    }
+  )
+  /*返回新的数组：原数组、逆向数组*/
+  return flatten(reverse ? guards.reverse() : guards)
+}
+
+/*提取指定 key 的路由钩子函数*/
+function extractGuard (
+  def: Object | Function, /*records[i]*/
+  key: string /*beforeRouteLeave*/
+): NavigationGuard | Array<NavigationGuard> {
+  if (typeof def !== 'function') {
+    // extend now so that global mixins are applied.
+    def = _Vue.extend(def)
+  }
+  /*返回组件*/
+  return def.options[key]
+}
+
+
+/*1、停用的路由：beforeRouteLeave 钩子函数调用*/
+function extractLeaveGuards (deactivated: Array<RouteRecord>): Array<?Function> {
+  return extractGuards(deactivated, 'beforeRouteLeave', bindGuard, true)
+}
+
+/*2、更新的路由：beforeRouteUpdate 钩子函数调用*/
+function extractUpdateHooks (updated: Array<RouteRecord>): Array<?Function> {
+  return extractGuards(updated, 'beforeRouteUpdate', bindGuard)
+}
+
+/*3、激活的路由：beforeRouteEnter 钩子函数调用*/
 function extractEnterGuards (
   activated: Array<RouteRecord>,
   cbs: Array<Function>,

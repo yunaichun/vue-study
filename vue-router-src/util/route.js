@@ -3,8 +3,6 @@
 import type VueRouter from '../index'
 import { stringifyQuery } from './query'
 
-const trailingSlashRE = /\/?$/
-
 // the starting route that represents the initial state
 /*根路由 '/' 路由 url.parse 对象*/
 export const START = createRoute(null, {
@@ -105,34 +103,52 @@ function formatMatch (record: ?RouteRecord): Array<RouteRecord> {
   return res
 }
 
+
+/*判断路由 a 和路由 b 是否相同*/
+const trailingSlashRE = /\/?$/ /*以 / 结尾*/
 export function isSameRoute (a: Route, b: ?Route): boolean {
+  /*b 路由是根路由*/
   if (b === START) {
     return a === b
-  } else if (!b) {
+  }
+  /*b 路由不是根路由，但是时空路由*/
+  else if (!b) {
     return false
-  } else if (a.path && b.path) {
+  }
+  /*b 路由不是根路由，不是空路由；且 a 和 b 的 path 都存在*/
+  else if (a.path && b.path) {
+    /*a.path 和 b.path 相等，同时 a.hash 和 b.hash 相等，同时 a.query 和 b.query 相同*/
     return (
       a.path.replace(trailingSlashRE, '') === b.path.replace(trailingSlashRE, '') &&
       a.hash === b.hash &&
       isObjectEqual(a.query, b.query)
     )
-  } else if (a.name && b.name) {
+  }
+  /*b 路由不是根路由，不是空路由；且 a 和 b 的 name 都存在*/
+  else if (a.name && b.name) {
+    /*a.name 和 b.name 相等，同时 a.hash 和 b.hash 相等，同时 a.query 和 b.query 相同、a.params 和 b.params 相同*/
     return (
       a.name === b.name &&
       a.hash === b.hash &&
       isObjectEqual(a.query, b.query) &&
       isObjectEqual(a.params, b.params)
     )
-  } else {
+  }
+  /*其余情况*/
+  else {
     return false
   }
 }
 
+
+/*判断 a 和 b 是否是相等的对象*/
 function isObjectEqual (a = {}, b = {}): boolean {
   // handle null value #1566
+  /*a 和 b都是 null 对象*/
   if (!a || !b) return a === b
   const aKeys = Object.keys(a)
   const bKeys = Object.keys(b)
+  /*a 和 b 对象的 key 的长度不同*/
   if (aKeys.length !== bKeys.length) {
     return false
   }
@@ -143,6 +159,7 @@ function isObjectEqual (a = {}, b = {}): boolean {
     if (typeof aVal === 'object' && typeof bVal === 'object') {
       return isObjectEqual(aVal, bVal)
     }
+    /*a 的 key 对应的 value 和 b 的 key 对应的 value 是否相同*/
     return String(aVal) === String(bVal)
   })
 }

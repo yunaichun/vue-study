@@ -3,13 +3,15 @@
 import { _Vue } from '../install'
 import { warn, isError } from './warn'
 
+/*处理异步激活的路由组件*/
 export function resolveAsyncComponents (matched: Array<RouteRecord>): Function {
   return (to, from, next) => {
     let hasAsync = false
     let pending = 0
     let error = null
 
-    flatMapComponents(matched, (def, _, match, key) => {
+    /*返回 matched 路由 map 出的新路由，map 的函数是 fn*/
+    flatMapComponents(matched, (def, _, match, key) => { /*matched[i].components[key]、matched[i].instances[key]、matched[i]、i*/
       // if it's a function and doesn't have cid attached,
       // assume it's an async component resolve function.
       // we are not using Vue's default async resolving mechanism because
@@ -19,7 +21,9 @@ export function resolveAsyncComponents (matched: Array<RouteRecord>): Function {
         hasAsync = true
         pending++
 
+        /*定义 resolve 函数*/
         const resolve = once(resolvedDef => {
+          /*是 ESModule 模块加载*/
           if (isESModule(resolvedDef)) {
             resolvedDef = resolvedDef.default
           }
@@ -34,6 +38,7 @@ export function resolveAsyncComponents (matched: Array<RouteRecord>): Function {
           }
         })
 
+        /*定义 reject 函数*/
         const reject = once(reason => {
           const msg = `Failed to resolve async component ${key}: ${reason}`
           process.env.NODE_ENV !== 'production' && warn(false, msg)
@@ -45,12 +50,15 @@ export function resolveAsyncComponents (matched: Array<RouteRecord>): Function {
           }
         })
 
+        /*执行 Promise 函数*/
         let res
         try {
           res = def(resolve, reject)
         } catch (e) {
           reject(e)
         }
+
+        /*Promise 正确返回*/
         if (res) {
           if (typeof res.then === 'function') {
             res.then(resolve, reject)
@@ -65,23 +73,27 @@ export function resolveAsyncComponents (matched: Array<RouteRecord>): Function {
       }
     })
 
+    /*递归执行*/    
     if (!hasAsync) next()
   }
 }
 
+/*返回 matched 路由 map 出的新路由，map 的函数是 fn*/
 export function flatMapComponents (
-  matched: Array<RouteRecord>,
-  fn: Function
+  matched: Array<RouteRecord>, /*匹配的路由*/
+  fn: Function /*map 的函数是 fn*/
 ): Array<?Function> {
+  /*复制数组 matched 的拷贝*/
   return flatten(matched.map(m => {
     return Object.keys(m.components).map(key => fn(
-      m.components[key],
+      m.components[key], 
       m.instances[key],
       m, key
     ))
   }))
 }
 
+/*复制数组 arr 的拷贝*/
 export function flatten (arr: Array<any>): Array<any> {
   return Array.prototype.concat.apply([], arr)
 }
@@ -90,6 +102,7 @@ const hasSymbol =
   typeof Symbol === 'function' &&
   typeof Symbol.toStringTag === 'symbol'
 
+/*是 ESModule 模块加载*/
 function isESModule (obj) {
   return obj.__esModule || (hasSymbol && obj[Symbol.toStringTag] === 'Module')
 }
@@ -98,6 +111,7 @@ function isESModule (obj) {
 // so the resolve/reject functions may get called an extra time
 // if the user uses an arrow function shorthand that happens to
 // return that Promise.
+/*保证 fn 函数只会执行一次*/
 function once (fn) {
   let called = false
   return function (...args) {

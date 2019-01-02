@@ -44,6 +44,7 @@ export class HTML5History extends History {
     window.history.go(n)
   }
 
+  /*通过 pushState 调用 transitionTo 跳转路由*/
   push (location: RawLocation, onComplete?: Function, onAbort?: Function) {
     const { current: fromRoute } = this
     this.transitionTo(location, route => {
@@ -53,6 +54,7 @@ export class HTML5History extends History {
     }, onAbort)
   }
 
+  /*通过 replaceState 调用 transitionTo 跳转路由*/
   replace (location: RawLocation, onComplete?: Function, onAbort?: Function) {
     const { current: fromRoute } = this
     this.transitionTo(location, route => {
@@ -62,9 +64,16 @@ export class HTML5History extends History {
     }, onAbort)
   }
 
+  /*跳转 url 路由：pushState、replaceState*/
   ensureURL (push?: boolean) {
+    /*一、根据 base 获取浏览器 window 地址location：pathname + search + hash
+      二、当前路由对象的 fullPath
+      二者不相等
+    */ 
     if (getLocation(this.base) !== this.current.fullPath) {
+      /*将当前路由对象的 fullPath 中的双斜杠 替换成 一个斜杠*/
       const current = cleanPath(this.base + this.current.fullPath)
+      /*跳转 url 路由：window.history.pushState、window.history.replaceState*/
       push ? pushState(current) : replaceState(current)
     }
   }

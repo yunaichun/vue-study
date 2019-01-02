@@ -44,6 +44,7 @@ export class HashHistory extends History {
     })
   }
 
+  /*通过 pushHash 调用 transitionTo 跳转路由*/
   push (location: RawLocation, onComplete?: Function, onAbort?: Function) {
     const { current: fromRoute } = this
     this.transitionTo(location, route => {
@@ -53,6 +54,7 @@ export class HashHistory extends History {
     }, onAbort)
   }
 
+  /*通过 replaceHash 调用 transitionTo 跳转路由*/
   replace (location: RawLocation, onComplete?: Function, onAbort?: Function) {
     const { current: fromRoute } = this
     this.transitionTo(location, route => {
@@ -66,9 +68,16 @@ export class HashHistory extends History {
     window.history.go(n)
   }
 
+  /*跳转 url 路由：pushHash、replaceHash*/
   ensureURL (push?: boolean) {
+    /*获取当前路由对象的 fullPath*/
     const current = this.current.fullPath
+     /*一、获取浏览器 window 地址的 hash 值
+       二、当前路由对象的 fullPath
+       二者不相等
+    */
     if (getHash() !== current) {
+      /*跳转 url 路由：pushHash、replaceHash*/
       push ? pushHash(current) : replaceHash(current)
     }
   }
@@ -88,6 +97,39 @@ export function getHash (): string {
   return index === -1 ? '' : decodeURI(href.slice(index + 1))
 }
 
+/*向浏览器中 pushState*/
+function pushHash (path) {
+  /*支持 pushState 的浏览器：利用 pushState 方法*/
+  if (supportsPushState) {
+    /*获取浏览器路径：path 为新的 hash*/
+    pushState(getUrl(path))
+  }
+  /*不支持 pushState 的浏览器：直接利用 window.location.hash 修改浏览器的 hash 值*/
+  else {
+    window.location.hash = path
+  }
+}
+
+/*向浏览器中 replaceHash*/
+function replaceHash (path) {
+  /*支持 pushState 的浏览器：利用 replaceState 方法*/
+  if (supportsPushState) {
+    replaceState(getUrl(path))
+  }
+  /*不支持 pushState 的浏览器：window.location.replace*/
+  else {
+    window.location.replace(getUrl(path))
+  }
+}
+
+/*获取浏览器路径：path 为新的 hash*/
+function getUrl (path) {
+  const href = window.location.href
+  const i = href.indexOf('#')
+  const base = i >= 0 ? href.slice(0, i) : href
+  return `${base}#${path}`
+}
+
 function checkFallback (base) {
   const location = getLocation(base)
   if (!/^\/#/.test(location)) {
@@ -105,27 +147,4 @@ function ensureSlash (): boolean {
   }
   replaceHash('/' + path)
   return false
-}
-
-function getUrl (path) {
-  const href = window.location.href
-  const i = href.indexOf('#')
-  const base = i >= 0 ? href.slice(0, i) : href
-  return `${base}#${path}`
-}
-
-function pushHash (path) {
-  if (supportsPushState) {
-    pushState(getUrl(path))
-  } else {
-    window.location.hash = path
-  }
-}
-
-function replaceHash (path) {
-  if (supportsPushState) {
-    replaceState(getUrl(path))
-  } else {
-    window.location.replace(getUrl(path))
-  }
 }

@@ -95,10 +95,13 @@ export default class VueRouter {
     this.app = app
 
     const history = this.history
+    /*transitionTo函数：跳转路由封装*/
     if (history instanceof HTML5History) {
       /*case 'history': 调用 history 实例的 transitionTo 方法、传入 history.getCurrentLocation()*/
       history.transitionTo(history.getCurrentLocation())
-    } else if (history instanceof HashHistory) {
+    }
+    /*transitionTo函数：跳转路由封装（通过给 popstate 或 hashchange 添加监听）*/
+    else if (history instanceof HashHistory) {
       const setupHashListener = () => {
         history.setupListeners()
       }
