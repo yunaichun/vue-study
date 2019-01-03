@@ -137,59 +137,73 @@ export default class VueRouter {
     return this.matcher.match(raw, current, redirectedFrom)
   }
 
+  /*获取当前路由对象*/
   get currentRoute (): ?Route {
     return this.history && this.history.current
   }
   
+  /*注册 beforeHooks 事件*/
   beforeEach (fn: Function): Function {
     return registerHook(this.beforeHooks, fn)
   }
 
+  /*注册 resolveHooks 事件*/
   beforeResolve (fn: Function): Function {
     return registerHook(this.resolveHooks, fn)
   }
 
+  /*注册 afterHooks 事件*/
   afterEach (fn: Function): Function {
     return registerHook(this.afterHooks, fn)
   }
 
+  /*onReady 事件*/
   onReady (cb: Function, errorCb?: Function) {
     this.history.onReady(cb, errorCb)
   }
 
+  /*onError 事件*/
   onError (errorCb: Function) {
     this.history.onError(errorCb)
   }
 
+  /*调用 transitionTo 跳转路由*/
   push (location: RawLocation, onComplete?: Function, onAbort?: Function) {
     this.history.push(location, onComplete, onAbort)
   }
 
+  /*调用 transitionTo 跳转路由*/
   replace (location: RawLocation, onComplete?: Function, onAbort?: Function) {
     this.history.replace(location, onComplete, onAbort)
   }
 
+  /*跳转到指定历史记录*/
   go (n: number) {
     this.history.go(n)
   }
 
+  /*后退*/
   back () {
     this.go(-1)
   }
 
+  /*前进*/
   forward () {
     this.go(1)
   }
 
+  /*获取路由匹配的组件*/
   getMatchedComponents (to?: RawLocation | Route): Array<any> {
     const route: any = to
       ? to.matched
         ? to
         : this.resolve(to).route
       : this.currentRoute
+    /*没有匹配的路由，返回空数组*/
     if (!route) {
       return []
     }
+    /*返回路由匹配的 components*/
     return [].concat.apply([], route.matched.map(m => {
       return Object.keys(m.components).map(key => {
         return m.components[key]
@@ -197,9 +211,10 @@ export default class VueRouter {
     }))
   }
 
+  /*根据路由对象返回浏览器路径等信息*/
   resolve (
-    to: RawLocation,
-    current?: Route,
+    to: RawLocation, /*要跳转至的路由*/
+    current?: Route, /*当前路由*/
     append?: boolean
   ): {
     location: Location,
@@ -209,50 +224,67 @@ export default class VueRouter {
     normalizedTo: Location,
     resolved: Route
   } {
+    /*规范化处理 location*/
     const location = normalizeLocation(
       to,
       current || this.history.current,
       append,
       this
     )
+    /*根据 location 匹配的路由对象*/
     const route = this.match(location, current)
+    /*匹配的路由对象的 fullPath*/
     const fullPath = route.redirectedFrom || route.fullPath
     const base = this.history.base
+    /*创建页面 href 链接*/
     const href = createHref(base, fullPath, this.mode)
     return {
-      location,
-      route,
-      href,
+      location, /*规范化处理 location*/
+      route, /*根据 location 匹配的路由对象*/
+      href, /*创建页面 href 链接*/
       // for backwards compat
       normalizedTo: location,
       resolved: route
     }
   }
 
+  /*添加路由函数：根据 routes 配置对象创建路由 map*/
   addRoutes (routes: Array<RouteConfig>) {
+    /*添加路由函数*/
     this.matcher.addRoutes(routes)
+    /*如果当前路由对象不是根路由*/
     if (this.history.current !== START) {
+      /*跳转路由*/
       this.history.transitionTo(this.history.getCurrentLocation())
     }
   }
 }
 
+/*注册指定钩子函数*/
 function registerHook (list: Array<any>, fn: Function): Function {
+  /*将 fn 存入 list 数组 */
   list.push(fn)
+  /*返回一个函数*/
   return () => {
+    /*又将此 fn 抽出来了*/
     const i = list.indexOf(fn)
     if (i > -1) list.splice(i, 1)
   }
 }
 
+/*创建页面 href 链接*/
 function createHref (base: string, fullPath: string, mode) {
+  /*fullPath 的 hash 值*/
   var path = mode === 'hash' ? '#' + fullPath : fullPath
+  /*加上 base 的全部路径*/
   return base ? cleanPath(base + '/' + path) : path
 }
 
+/*装载 install 方法和 version 版本*/
 VueRouter.install = install
 VueRouter.version = '__VERSION__'
 
+/*自动装载 VueRouter 实例*/
 if (inBrowser && window.Vue) {
   window.Vue.use(VueRouter)
 }
