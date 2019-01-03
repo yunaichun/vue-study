@@ -30,7 +30,10 @@ export class History {
   +ensureURL: (push?: boolean) => void;
   +getCurrentLocation: () => string;
 
-  constructor (router: Router, base: ?string) {
+  constructor (
+    router: Router, /*router：VueRouter 实例 this*/
+    base: ?string /*base：VueRouter 实例 配置项 options.base*/
+  ) {
     /*保存 VueRouter 实例*/
     this.router = router
     /*规范化 VueRouter 传入参数 options.base*/

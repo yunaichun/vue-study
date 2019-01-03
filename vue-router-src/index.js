@@ -103,18 +103,20 @@ export default class VueRouter {
     /*transitionTo函数：跳转路由封装（通过给 popstate 或 hashchange 添加监听）*/
     else if (history instanceof HashHistory) {
       const setupHashListener = () => {
+        /*设置 popstate、hashchange 事件监听*/
         history.setupListeners()
       }
       /*case 'hash': 调用 history 实例的 transitionTo 方法、传入 history.getCurrentLocation() + history.setupListeners()*/
       history.transitionTo(
         history.getCurrentLocation(),
-        setupHashListener,
-        setupHashListener
+        setupHashListener, /*成功事件*/
+        setupHashListener /*失败事件*/
       )
     }
     /*history 的 listen 监听函数*/
     history.listen(route => {
       this.apps.forEach((app) => {
+        /*实例化的 route 定义在 Vue 的 _route 属性下*/
         app._route = route
       })
     })
@@ -122,6 +124,12 @@ export default class VueRouter {
 
   /*match 方法即为 createMatcher 方法返回的 match 方法*/
   match (
+    /*1、参数一：根据 base 获取浏览器 window 地址location：pathname + search + hash（对 HTML5History 来说）
+                 获取浏览器 window 地址的 hash 值（对 HashHistory 来说） 
+                 非浏览器环境获取 stack 数组最后一项的 fullPath（对 AbstractHistory 来说） 
+      2、参数二：根路由 '/' 路由 url.parse 对象（根据 util/route.js 文件的 createRoute 方法创建）
+      3、参数三：参数值与 参数一 类似
+    */
     raw: RawLocation,
     current?: Route,
     redirectedFrom?: Location

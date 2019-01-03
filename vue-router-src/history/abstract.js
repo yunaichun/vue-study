@@ -7,7 +7,11 @@ export class AbstractHistory extends History {
   index: number;
   stack: Array<Route>;
 
-  constructor (router: Router, base: ?string) {
+  constructor (
+    router: Router, /*router：VueRouter 实例 this*/
+    base: ?string /*base：VueRouter 实例 配置项 options.base*/
+  ) {
+    /*继承 History 属性和方法*/
     super(router, base)
     this.stack = []
     this.index = -1

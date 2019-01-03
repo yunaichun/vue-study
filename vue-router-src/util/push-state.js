@@ -8,10 +8,12 @@ const Time = inBrowser && window.performance && window.performance.now
   ? window.performance
   : Date
 
+/*获取当前路径对应的 key，可以在 popstate 监听事件中拿到*/
 export function getStateKey () {
   return _key
 }
 
+/*获取当前路径对应的 key*/
 export function setStateKey (key: string) {
   _key = key
 }
