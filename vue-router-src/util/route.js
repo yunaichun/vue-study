@@ -164,6 +164,7 @@ function isObjectEqual (a = {}, b = {}): boolean {
   })
 }
 
+/*当前路由 current 是否包含 目标路由 target*/
 export function isIncludedRoute (current: Route, target: Route): boolean {
   return (
     current.path.replace(trailingSlashRE, '/').indexOf(

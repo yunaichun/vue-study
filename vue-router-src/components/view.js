@@ -100,7 +100,7 @@ export default {
       }
     }
 
-    /*创建虚拟DOM*/
+    /*创建此路由匹配的组件，传入指定的数据和子组件*/
     return h(component, data, children)
   }
 }
