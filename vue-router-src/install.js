@@ -21,7 +21,13 @@ export function install (Vue) {
     }
   }
 
-  /*给每个组件的钩子函数混入实现，可以发现在 `beforeCreate` 钩子执行时，会初始化路由*/
+  /*创建 Vue 实例：启动应用
+    const app = new Vue({
+        router,
+        ...Wrap
+    }).$mount('#app');
+    会调用 beforeCreate 方法 -> 会调用 VueRouter 的 init 方法
+  */
   Vue.mixin({
     beforeCreate () {
       /*判断组件是否存在 router 对象，该对象只在根组件上有*/
