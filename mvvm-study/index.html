@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<title>MMVM双向数据绑定模型</title>
+	<script src="index.js"></script>
+</head>
+<body>
+	<script>
+        // 第一步：定义一个普通对象作为数据模型
+        var data = {
+            a: 200,
+            level1: {
+                b: 'str',
+                c: [{ w: 90 }, { x: [1] }, 3],
+                level2: {
+                    w: 90,
+                    x: [1]
+                }
+            }
+        };
+        // 第二步：通过 observer 对其进行观测【写observer函数】
+        observer(data);
+        // 第三步：定义三个观察者。当数据data.a有变化时，执行相应的回调方法【写Watch构造函数】
+        // 检测对象--------------
+        new Watch('a', () => {
+            alert('data.a的值改变了，第一个回调');
+        });
+        new Watch('a', function(newVal, oldVal) {
+            alert('新值：' + newVal + '----' + '旧值：' + oldVal);
+        });
+        data.a = 300;
+        // 监测对象嵌套对象
+        new Watch('level1.level2.w', function(newVal, oldVal) {
+            alert('新值：' + newVal + '----' + '旧值：' + oldVal);
+        });
+        data.level1.level2.w = 'modifystr';
+        // 监测对象嵌套数组
+        new Watch('level1.level2.x', function(newVal, oldVal) {
+            alert('新值：' + newVal + '----' + '旧值：' + oldVal);
+        });
+        data.level1.level2.x.push(2);
+
+        // 监测数组--------------
+        new Watch('level1.c', function(newVal, oldVal) {
+            alert('新值：' + newVal + '----' + '旧值：' + oldVal);
+        });
+        data.level1.c.push(4);
+        // 监测数组嵌套对象
+        new Watch('level1.c.0.w', function(newVal, oldVal) {
+            alert('新值：' + newVal + '----' + '旧值：' + oldVal);
+        });
+        data.level1.c[0].w = 100;
+        // 监测数组嵌套数组
+        new Watch('level1.c.1.x', function(newVal, oldVal) {
+            alert('新值：' + newVal + '----' + '旧值：' + oldVal);
+        });
+        data.level1.c[1].x.push(4);
+	</script>
+</body>
+</html>
