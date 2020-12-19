@@ -11,12 +11,14 @@
 
 ## 参考资料
 
+#### vue
 - [Vue官方文档](https://cn.vuejs.org)
-- [Vue源码学习概览](http://hcysun.me/2017/03/03/Vue源码学习/)
-- [Vue源码学习手记](https://www.imooc.com/u/6702342/articles)
+- [Vue2.1.7源码学习](http://hcysun.me/2017/03/03/Vue源码学习/)
+- [JavaScript实现MVVM之我就是想监测一个普通对象的变化](http://hcysun.me/2016/04/28/JavaScript实现MVVM之我就是想监测一个普通对象的变化/)
+- [人人都能懂的Vue源码系列](https://www.imooc.com/u/6702342/articles)
 - [Vue.js技术揭秘](https://ustbhuangyi.github.io/vue-analysis/)
-- [染陌学习总结](https://github.com/answershuto/learnVue)
-- [监测一个普通对象的变化](http://hcysun.me/2016/04/28/JavaScript实现MVVM之我就是想监测一个普通对象的变化/)
+- [剖析 Vue.js 内部运行机制](https://github.com/answershuto/learnVue)
+- [Vue.js 源码学习笔记](http://jiongks.name/blog/vue-code-review/)
 
 - [Vuex官方文档](https://vuex.vuejs.org/zh/guide/)
 - [美团-Vuex框架原理与源码分析](https://tech.meituan.com/2017/04/27/vuex-code-analysis.html)
