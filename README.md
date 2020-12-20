@@ -20,7 +20,7 @@
 #### vuex 源码阅读相关
 
 - [Vuex官方文档](https://vuex.vuejs.org/zh/guide/)
-- [美团-Vuex框架原理与源码分析](https://tech.meituan.com/2017/04/27/vuex-code-analysis.html)
+- [Vuex框架原理与源码分析](https://tech.meituan.com/2017/04/27/vuex-code-analysis.html)
 - [Vuex源码分析](https://juejin.im/entry/6844903487549997064)
 
 #### vue 源码阅读相关
