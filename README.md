@@ -5,7 +5,7 @@
 ## 目录结构
 
 ```   
-├── mvvm-simple-diy             mvvm 简易实现
+├── mvvm-simple                 mvvm 简易实现
 ├── vuex-src                    vuex 源码阅读
 ├── vue-src                     vue  源码阅读
 └── vue-router-src              vuex-router 源码阅读
