@@ -23,6 +23,7 @@ new Watcher(data, 'a', function(newVal, oldVal) {
     console.log('新值: ' + newVal + '----' + '旧值: ' + oldVal);
 });
 data.a = 300;
+console.log('data', data);
 
 // // == 2、监测对象嵌套对象
 new Watcher(data, 'level1.level2.w', function(newVal, oldVal) {

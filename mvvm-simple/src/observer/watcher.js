@@ -1,4 +1,4 @@
-import Dep, { pushTarget } from './dep';
+import { pushTarget } from './dep';
 
 // == 数据监听函数
 export default class Watch {
@@ -11,6 +11,7 @@ export default class Watch {
         this.value = this.get();
     }
 
+    // == 取值触发依赖收集
     get() {
         // == 1、设置 Dep.target
         pushTarget(this);
@@ -25,6 +26,7 @@ export default class Watch {
         dep.addSub(this);
     }
 
+    // == 设置值触发收集的依赖
     update(newVal) {
         const oldVal = this.value;
         this.cb(newVal, oldVal);
@@ -32,7 +34,7 @@ export default class Watch {
 
 }
 
-// == 解析路径
+// == 根据 path 中的 . 获取 obj 的层级 value
 function parsePath(path) {
     const bailRE = /[^\w.$]/;
     if (bailRE.test(path)) {

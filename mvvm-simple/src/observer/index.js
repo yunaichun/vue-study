@@ -1,7 +1,7 @@
 import Dep from './dep';
 import { arrayMethods } from './array';
 
-// == 返回观察者实例对象
+// == 返回 Observer 实例对象
 export function observer(data) {
     if(data == null || typeof data !== 'object') {
         return;
@@ -17,12 +17,16 @@ export function observer(data) {
     return ob;
 }
 
-// == 观察者对象
+// == 数据添加 __ob__ 属性为 Observer 实例
+// == 一、data.__ob__ = new Observer(data);
+// == 二、data.__ob__.dep = new Dep();
+// == 1、当前 val 为对象或数组时，依赖由当前 val 的 __ob__.dep 收集
+// == 2、当前 val 为数组时，子项为对象或数组的话，依赖由当前 val 的子项的 __ob__.dep 收集
 export class Observer {
-    // == data.__ob__ = new Observer(data)
-    // == (new Observer(data)).dep = new Dep();
     constructor(data) {
         this.dep = new Dep();
+        
+        // == 数组或对象均有 __ob__ 属性
         Object.defineProperty(data, '__ob__', {
             value: this,
             enumerable: false,
@@ -40,7 +44,7 @@ export class Observer {
         }
     }
     
-    // == 对象响应式处理
+    // == 对象响应式处理: 保证对象的每一个 key 的 value 都有 __ob__ 属性
     walk(data) {
         let keys = Object.keys(data);
         for(let i = 0; i < keys.length; i++){
@@ -48,7 +52,7 @@ export class Observer {
         }
     }
 
-    // == 数组响应式处理
+    // == 数组响应式处理: 保证数组的每一个 item 都有 __ob__ 属性
     observeArray(items) {
         for (let i = 0, l = items.length; i < l; i++) {
             observer(items[i])
@@ -57,13 +61,13 @@ export class Observer {
 }
 
 
-// == 将 data 的属性转换为访问器属性 { }                                                                                                                                                                                                                                                                       
+// == 将 data 的属性转换为访问器属性                                                                                                                                                                                                                                                                      
 export function defineReactive(data, key, val) {
-    // == 完成当前 key 依赖的收集
+    // == 1、完成 val 为基本数据类型（非对象或数组）的依赖收集
     let dep = new Dep();
     
-    // == 当前 val 是对象或数组的话: { w: 1 }、[1]
-    let childObj = observer(val);
+    // == 2、这一步可知数组或对象有一个 __ob__.dep 的属性，完成 val 为对象或数组的依赖收集
+    let childObserverInstance = observer(val);
 
 	Object.defineProperty(data, key, {
         enumerable: true,
@@ -72,10 +76,12 @@ export function defineReactive(data, key, val) {
             // == 依赖对象已经设置好，开始收集依赖
             if (Dep.target) {
                 dep.depend();
-                if (childObj) {
-                    // == value 是对象，进行依赖添加，如: { w: 1 }
-                    childObj.dep.depend();
-                    // == value 是数组，递归依赖收集，如: [{ w: [1] }, [1], 3]
+                // == 1、当前 val 为对象或数组时，依赖由当前 val 的 __ob__.dep 收集
+                // == 当前 val 是对象或数组的话: { w: 1 }、[ 1 ]
+                if (childObserverInstance) {
+                    // == 3、由此可以看出当前 val 为对象或数组时，依赖由当前 val 的 __ob__.dep 收集
+                    childObserverInstance.dep.depend();
+                    // == 4、由此可以看出 val 为数组时，子项为对象或数组的话，依赖由当前 val 的子项的 __ob__.dep 收集
                     if (Array.isArray(val)) {
                         dependArray(val);
                     }
@@ -87,20 +93,18 @@ export function defineReactive(data, key, val) {
             if (val === newVal) {
                 return;
             }
-            childObj = observer(newVal);
+            childObserverInstance = observer(newVal);
             // == 触发收集的依赖
             dep.notify(newVal);
         }
     });
 }
 
-// == 递归对数组的依赖收集: [{ w: [1] }, [1], 3]
+// == 递归对数组子项的依赖收集
 function dependArray(value) {
     for (let e, i = 0, l = value.length; i < l; i++) {
         e = value[i];
-        // == 数组 item 为对象: { w: [1] }
         e && e.__ob__ && e.__ob__.dep.depend();
-        // == 数组 item 为数组: [1]
         if (Array.isArray(e)) {
             dependArray(e);
         }

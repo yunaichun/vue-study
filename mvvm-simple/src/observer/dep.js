@@ -1,4 +1,4 @@
-// == 依赖收集
+// == 依赖收集函数: Dep.target 存入的是 Watch 实例
 export default class Dep {
     static target;
 
