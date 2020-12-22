@@ -76,12 +76,11 @@ export function defineReactive(data, key, val) {
             // == 依赖对象已经设置好，开始收集依赖
             if (Dep.target) {
                 dep.depend();
-                // == 1、当前 val 为对象或数组时，依赖由当前 val 的 __ob__.dep 收集
                 // == 当前 val 是对象或数组的话: { w: 1 }、[ 1 ]
                 if (childObserverInstance) {
-                    // == 3、由此可以看出当前 val 为对象或数组时，依赖由当前 val 的 __ob__.dep 收集
+                    // == 2、由此可以看出当前 val 为对象或数组时，依赖由当前 val 的 __ob__.dep 收集
                     childObserverInstance.dep.depend();
-                    // == 4、由此可以看出 val 为数组时，子项为对象或数组的话，依赖由当前 val 的子项的 __ob__.dep 收集
+                    // == 3、由此可以看出 val 为数组时，子项为对象或数组的话，依赖由当前 val 的子项的 __ob__.dep 收集
                     if (Array.isArray(val)) {
                         dependArray(val);
                     }
