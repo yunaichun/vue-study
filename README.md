@@ -11,9 +11,22 @@
 └── vue-router-src              vuex-router 源码阅读
 ```
 
+## 学习笔记
+
+#### MVVM 简易实现相关
+
+- MVVM实现目标: https://www.answera.top/frontend/vue/mvvm/target
+- observer: https://www.answera.top/frontend/vue/mvvm/observer
+- Watcher: https://www.answera.top/frontend/vue/mvvm/watcher
+- Dep: https://www.answera.top/frontend/vue/mvvm/dep
+
+#### vuex 源码阅读相关
+
+#### vue 源码阅读相关
+
 ## 参考资料
 
-#### mvvm 简易实现相关
+#### MVVM 简易实现相关
 
 - [JavaScript实现MVVM之我就是想监测一个普通对象的变化](http://hcysun.me/2016/04/28/JavaScript实现MVVM之我就是想监测一个普通对象的变化/)
 

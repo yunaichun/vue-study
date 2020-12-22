@@ -9,7 +9,7 @@ export default class Dep {
     // == 收集依赖: 触发 Watch 的 addDep 方法
     depend() {
         if (Dep.target) {
-            Dep.target.addDep(this)
+            Dep.target.addDep(this);
         }
     }
 

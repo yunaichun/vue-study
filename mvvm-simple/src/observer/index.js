@@ -20,8 +20,8 @@ export function observer(data) {
 // == 数据添加 __ob__ 属性为 Observer 实例
 // == 一、data.__ob__ = new Observer(data);
 // == 二、data.__ob__.dep = new Dep();
-// == 1、当前 val 为对象或数组时，依赖由当前 val 的 __ob__.dep 收集
-// == 2、当前 val 为数组时，子项为对象或数组的话，依赖由当前 val 的子项的 __ob__.dep 收集
+// == 2、当前 val 为对象或数组时，依赖由当前 val 的 __ob__.dep 收集
+// == 3、当前 val 为数组时，子项为对象或数组的话，依赖由当前 val 的子项的 __ob__.dep 收集
 export class Observer {
     constructor(data) {
         this.dep = new Dep();
@@ -80,7 +80,7 @@ export function defineReactive(data, key, val) {
                 if (childObserverInstance) {
                     // == 2、由此可以看出当前 val 为对象或数组时，依赖由当前 val 的 __ob__.dep 收集
                     childObserverInstance.dep.depend();
-                    // == 3、由此可以看出 val 为数组时，子项为对象或数组的话，依赖由当前 val 的子项的 __ob__.dep 收集
+                    // == 3、由此可以看出当前 val 为数组时，子项为对象或数组的话，依赖由当前 val 的子项的 __ob__.dep 收集
                     if (Array.isArray(val)) {
                         dependArray(val);
                     }
