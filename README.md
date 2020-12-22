@@ -29,6 +29,7 @@
 #### MVVM 简易实现相关
 
 - [JavaScript实现MVVM之我就是想监测一个普通对象的变化](http://hcysun.me/2016/04/28/JavaScript实现MVVM之我就是想监测一个普通对象的变化/)
+- [Vue 源码 - observer 目录](https://github.com/yunaichun/vue-study/tree/master/vue-src/core/observer)
 
 #### vuex 源码阅读相关
 
