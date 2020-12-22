@@ -1,1 +1,4 @@
 .DS_Store
+
+/mvvm-simple/node_modules
+/mvvm-simple/dist

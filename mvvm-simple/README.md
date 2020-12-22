@@ -1,10 +1,20 @@
-# 简介
-参考Vue的数据响应原理，实现对普通对象的变化检测，MVVM模式中的 observer
+## 简介
 
-1、clone 项目
+MVVM 简版实现。
 
-git clone https://github.com/yunaichun/mvvm
+## 项目启动
 
-2、运行
+```bash
+# 安装依赖
+npm install
 
-使用浏览器打开 index.html
+# 构建
+npm run build
+
+# 测试运行
+npm run dev
+```
+
+## 参考资料
+
+- [JavaScript实现MVVM之我就是想监测一个普通对象的变化](http://hcysun.me/2016/04/28/JavaScript实现MVVM之我就是想监测一个普通对象的变化/)
