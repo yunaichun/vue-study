@@ -22,6 +22,9 @@
 
 #### vuex 源码阅读相关
 
+- Vue 整体流程: https://www.answera.top/frontend/vue/vue/process
+- Vue 渲染流程: https://www.answera.top/frontend/vue/vue/mount
+
 #### vue 源码阅读相关
 
 ## 参考资料
