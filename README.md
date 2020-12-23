@@ -20,12 +20,10 @@
 - Watcher: https://www.answera.top/frontend/vue/mvvm/watcher
 - Dep: https://www.answera.top/frontend/vue/mvvm/dep
 
-#### vuex 源码阅读相关
+#### vue 源码阅读相关
 
 - Vue 整体流程: https://www.answera.top/frontend/vue/vue/process
 - Vue 渲染流程: https://www.answera.top/frontend/vue/vue/mount
-
-#### vue 源码阅读相关
 
 ## 参考资料
 
