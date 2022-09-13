@@ -22,12 +22,13 @@ function Observer(data) {
     writable: true,
     configurable: true,
   });
-  if (!Array.isArray(data)) {
-    this.walk(data);
-  } else {
+  if (Array.isArray(data)) {
     /** 重写数组操作方法：目的是在调用数组方法的时候可以触发收集的依赖 */
     protoAugment(data, arrayMethods);
+    /** 递归数组每个 item */
     this.observeArray(data);
+  } else {
+    this.walk(data);
   }
 }
 /** 对象响应式处理: 保证对象的每一个 key 的 value 都有 __ob__ 属性 */
