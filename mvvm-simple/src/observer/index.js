@@ -31,6 +31,12 @@ function Observer(data) {
     this.walk(data);
   }
 }
+/** 遍历数组每一项调用 observer  */
+Observer.prototype.observeArray = function (arr) {
+  for (let i = 0, len = arr.length; i < len; i += 1) {
+    observer(arr[i]);
+  }
+}
 /** 对象响应式处理: 保证对象的每一个 key 的 value 都有 __ob__ 属性 */
 Observer.prototype.walk = function (obj) {
   let keys = Object.keys(obj);
@@ -39,11 +45,9 @@ Observer.prototype.walk = function (obj) {
     defineReactive(obj, key, obj[key]);
   }
 }
-/** 遍历数组每一项调用 observer  */
-Observer.prototype.observeArray = function (arr) {
-  for (let i = 0, len = arr.length; i < len; i += 1) {
-    observer(arr[i]);
-  }
+/** target 继承 src */
+function protoAugment(target, src) {
+  target.__proto__ = src;
 }
 
 /** 将 data 的属性转换为访问器属性 */                                                                                                                                                                                                                                                         
@@ -86,9 +90,4 @@ function dependArray(arr) {
     if (ob) ob.dep.depend();
     if (Array.isArray(item)) dependArray(e);
   }
-}
-
-/** target 继承 src */
-function protoAugment(target, src) {
-  target.__proto__ = src;
 }
